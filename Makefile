@@ -11,7 +11,7 @@ clean:
 	find . -name "*~" | xargs rm
 
 ctags:
-	ctags -R . /home/dave/.platformio/packages/framework-cmsis-stm32f1
+	ctags -R . ${HOME}/.platformio/packages/framework-cmsis-stm32f1
 
 TOOLCHAIN=${HOME}/.platformio/packages/toolchain-gccarmnoneeabi
 BUILD_DIR=.pio/build/genericSTM32F103C8/
