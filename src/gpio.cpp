@@ -46,7 +46,7 @@ public:
 
         // 4 bits in control reg for cfg[1:0] and mode[1:0]
         // TODO : allow access to Speed setting? eg Max speed 10/2/50 MHz
-        const uint8_t mode = (io & INPUT) ? 0 : 0x01;
+        const uint8_t mode = (io & INPUT) ? 0 : 0x3; // 0x3 = 50MHz
 
         uint8_t cfg = 0;
 

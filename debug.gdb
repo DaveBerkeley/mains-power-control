@@ -4,3 +4,4 @@ tui enable
 
 load 
 b main
+b Error_Handler
