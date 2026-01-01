@@ -12,6 +12,7 @@
 #include "panglos/drivers/uart.h"
 
 #include "gpio.h"
+#include "uart.h"
 
 #if defined(ASSERT)
 #undef ASSERT
@@ -38,73 +39,6 @@ static void ms_delay(int ms)
         }
     }
 }
-
-class STM32_UART : public UART
-{
-    USART_TypeDef *base;
-public:
-    STM32_UART(USART_TypeDef *_base)
-    :   base(_base)
-    {
-    }
-
-    void init(void)
-    {
-        // Enable clocks for GPIOA and USART1
-        //RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN;
-        RCC->APB2ENR |= RCC_APB2ENR_IOPAEN | RCC_APB2ENR_USART1EN;
- 
-        // Configure PA9 (TX) as alternate function push-pull
-        // CNF9[1:0] = 10 (AF push-pull), MODE9[1:0] = 11 (50MHz)
-        GPIOA->CRH &= ~(GPIO_CRH_CNF9 | GPIO_CRH_MODE9);
-        GPIOA->CRH |= GPIO_CRH_CNF9_1 | GPIO_CRH_MODE9;
- 
-        // Configure PA10 (RX) as input floating
-        // CNF10[1:0] = 01 (floating input), MODE10[1:0] = 00 (input)
-        GPIOA->CRH &= ~(GPIO_CRH_CNF10 | GPIO_CRH_MODE10);
-        GPIOA->CRH |= GPIO_CRH_CNF10_0;
-
-        // Configure USART1
-        // Assuming 8MHz clock, baud rate = 115200
-        // BRR = 8000000 / 115200 = 69.44 ≈ 0x45
-        base->BRR = 0x45;  // For 115200 baud @ 8MHz
-       
-        // Enable USART, TX
-        base->CR1 = USART_CR1_TE | USART_CR1_UE;
-    }
-
-    // Send a single character
-    void putchar(char c)
-    {
-        // Wait until TX buffer is empty
-        while(!(base->SR & USART_SR_TXE))
-            ;
-        base->DR = c;
-    }
-
-    // Send a string
-    void xSendString(const char *str)
-    {
-        while(*str)
-        {
-            putchar(*str++);
-        }
-    }
-
-    virtual int tx(const char* data, int n)
-    {
-        for (int i = 0; i < n; i++)
-        {
-            putchar(*data++);
-        }
-        return n;
-    }
-
-    virtual int rx(char* data, int n) override
-    {
-        ASSERT(0);
-    }
-};
 
     /*
      *  Logging interface
@@ -164,12 +98,14 @@ void SysTick_Handler(void)
 
 int main(void)
 {
-    STM32_UART uart(USART1);
-    uart.init();
+    STM32_GPIO::create(GPIOA, 9, STM32_GPIO::IO(STM32_GPIO::OUTPUT |  STM32_GPIO::ALT)); // Tx
+    //STM32_GPIO::create(GPIOA, 10, STM32_GPIO::IO(STM32_GPIO::INPUT |  STM32_GPIO::ALT)); // Rx
+
+    UART *uart = STM32_UART::create(USART1);
 
     logger = new Logging(S_DEBUG, 0);
 
-    logger->add(& uart, S_DEBUG, 0);
+    logger->add(uart, S_DEBUG, 0);
     PO_DEBUG("PanglOs STM32 System");
  
     int i = 123;
@@ -195,6 +131,7 @@ int main(void)
         ms_delay(500);
         led->toggle();
         //uart.SendString("Hello from STM32F1!\r\n");
+        PO_DEBUG("");
     }
 
     return 0;
