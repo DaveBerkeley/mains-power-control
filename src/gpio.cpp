@@ -1,30 +1,48 @@
 
+#include <assert.h>
+
 #include "panglos/debug.h"
 
 #include "gpio.h"
 
-#if defined(STM32F1)
+#undef ASSERT
+#define ASSERT(x) assert(x)
 
-#define ENABLE_GPIO_CLOCK (RCC->APB2ENR |= RCC_APB2ENR_IOPCEN)
+#if defined(STM32F1)
 
 class _STM32_GPIO : public STM32_GPIO
 {
 private:
-    static bool ck_enabled;
+    static uint32_t ck_enabled;
 
     GPIO_TypeDef *base;
     uint32_t mask;
+
+    void enable_port_power()
+    {
+        uint32_t pwr_mask = 0;
+
+        switch ((uint32_t) base)
+        {
+            case GPIOA_BASE : pwr_mask = RCC_APB2ENR_IOPAEN; break;
+            case GPIOB_BASE : pwr_mask = RCC_APB2ENR_IOPBEN; break;
+            case GPIOC_BASE : pwr_mask = RCC_APB2ENR_IOPCEN; break;
+            case GPIOD_BASE : pwr_mask = RCC_APB2ENR_IOPDEN; break;
+            default : ASSERT(0);
+        }
+        if (!(ck_enabled & pwr_mask))
+        {
+            RCC->APB2ENR |= pwr_mask;
+            ck_enabled |= pwr_mask;
+        }
+    }
 
 public:
     _STM32_GPIO(GPIO_TypeDef *_base, uint32_t pin, IO io)
     :   base(_base),
         mask(1 << pin)
     {
-        if (!ck_enabled)
-        {
-            ENABLE_GPIO_CLOCK;
-            ck_enabled = true;
-        }
+        enable_port_power();
 
         // 4 bits in control reg for cfg[1:0] and mode[1:0]
         // TODO : allow access to Speed setting? eg Max speed 10/2/50 MHz
@@ -76,7 +94,7 @@ public:
     }
 };
 
-bool _STM32_GPIO::ck_enabled = false;
+uint32_t _STM32_GPIO::ck_enabled = false;
 
 panglos::GPIO *STM32_GPIO::create(GPIO_TypeDef *_base, uint32_t _pin, IO io)
 {

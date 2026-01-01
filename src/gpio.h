@@ -3,10 +3,6 @@
 
 #if defined(STM32F1)
 
-#if defined(STM32F103xB)
-    // blue-pill board!
-#endif
-
 #include "stm32f1xx.h"
 
 class STM32_GPIO : public panglos::GPIO
@@ -25,3 +21,5 @@ public:
 };
 
 #endif  //  STM32F1
+
+//  FIN
