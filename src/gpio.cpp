@@ -18,7 +18,7 @@ private:
     GPIO_TypeDef *base;
     uint32_t mask;
 
-    void enable_port_power()
+    static void enable_port_power(GPIO_TypeDef *base)
     {
         uint32_t pwr_mask = 0;
 
@@ -42,7 +42,12 @@ public:
     :   base(_base),
         mask(1 << pin)
     {
-        enable_port_power();
+        init(_base, pin, io);
+    }
+
+    static void init(GPIO_TypeDef *base, uint32_t pin, IO io)
+    {
+        enable_port_power(base);
 
         // 4 bits in control reg for cfg[1:0] and mode[1:0]
         // TODO : allow access to Speed setting? eg Max speed 10/2/50 MHz
@@ -98,6 +103,13 @@ uint32_t _STM32_GPIO::ck_enabled = false;
 
 panglos::GPIO *STM32_GPIO::create(GPIO_TypeDef *_base, uint32_t _pin, IO io)
 {
+    if (io & INIT_ONLY)
+    {
+        // don't need to allocate any memory, just run the init code
+        _STM32_GPIO::init(_base, _pin, io);
+        return 0;
+    }
+
     return new _STM32_GPIO(_base, _pin, io);
 }
 

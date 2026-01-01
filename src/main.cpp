@@ -22,10 +22,16 @@ using namespace panglos;
 
 #define LED_PORT (GPIOC)
 #define LED_PIN (13)
+
+#define DEBUG_UART (USART1)
+
 #define UART_RX_PORT (GPIOA)
 #define UART_RX_PIN (10)
+#define UART_RX_IO STM32_GPIO::IO(STM32_GPIO::INPUT | STM32_GPIO::ALT | STM32_GPIO::INIT_ONLY)
+
 #define UART_TX_PORT (GPIOA)
 #define UART_TX_PIN (9)
+#define UART_TX_IO STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT | STM32_GPIO::INIT_ONLY)
 
 static GPIO *led;
 
@@ -60,11 +66,11 @@ extern "C" void SysTick_Handler(void)
 
 int main(void)
 {
-    // initialise the UART1 GPIO pins
-    STM32_GPIO::create(UART_TX_PORT, UART_TX_PIN, STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT)); // Tx
-    STM32_GPIO::create(UART_RX_PORT, UART_RX_PIN, STM32_GPIO::IO(STM32_GPIO::INPUT | STM32_GPIO::ALT)); // Rx
+    // initialise the UART GPIO pins
+    STM32_GPIO::create(UART_TX_PORT, UART_TX_PIN, UART_TX_IO);
+    STM32_GPIO::create(UART_RX_PORT, UART_RX_PIN, UART_RX_IO);
     // create the main UART
-    UART *uart = STM32_UART::create(USART1);
+    UART *uart = STM32_UART::create(DEBUG_UART);
 
     logger = new Logging(S_DEBUG, 0);
     logger->add(uart, S_DEBUG, 0);

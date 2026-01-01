@@ -15,6 +15,7 @@ public:
         PULL_DOWN = 0x08,
         OPEN_DRAIN = 0x10,
         ALT = 0x20,
+        INIT_ONLY = 0x40,
     } IO;
 
     static panglos::GPIO* create(GPIO_TypeDef *_base, uint32_t _pin, IO io);
