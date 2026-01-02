@@ -49,7 +49,6 @@ public:
     {
         enable_port_power(base);
 
-        // 4 bits in control reg for cfg[1:0] and mode[1:0]
         // TODO : allow access to Speed setting? eg Max speed 10/2/50 MHz
         const uint8_t mode = (io & INPUT) ? 0 : 0x3; // 0x3 = 50MHz
 
@@ -57,6 +56,7 @@ public:
 
         if (io & INPUT)
         {
+            cfg |= 0x01; // floating input
             if (io & (PULL_UP | PULL_DOWN))
             {
                 cfg |= 0x02;
@@ -75,6 +75,7 @@ public:
             }
         }
 
+        // 4 bits in control reg for cfg[1:0] and mode[1:0]
         const uint8_t d = (cfg << 2) | mode;
         const uint8_t cfg_mask = 0xf;
         const uint8_t shift = (pin % 8) * 4;
