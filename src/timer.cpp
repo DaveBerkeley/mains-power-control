@@ -1,7 +1,7 @@
 
 #include "timer.h"
 
-#if defined(STM32F1)
+//#if defined(STM32F1)
 
 #include "stm32f1xx.h"
 
@@ -54,9 +54,9 @@ void TIM2_InputCapture_Init(void)
     TIM2->SMCR &= ~TIM_SMCR_SMS;    // Clear slave mode
     TIM2->SMCR |= TIM_SMCR_SMS_2;   // SMS = 100 = Reset mode
     
-    // MASTER MODE: Generate trigger output on CC1 event
+    // MASTER MODE: Generate trigger on Reset (when counter resets)
     TIM2->CR2 &= ~TIM_CR2_MMS;
-    TIM2->CR2 |= (TIM_CR2_MMS_2 | TIM_CR2_MMS_1 | TIM_CR2_MMS_0);  // MMS = 111 = Compare Pulse (OC1REF)
+    TIM2->CR2 |= TIM_CR2_MMS_1;  // MMS = 010 = Update (counter reset generates TRGO)
     
     // Enable TIM2 interrupt in NVIC (for period measurement)
     NVIC_EnableIRQ(TIM2_IRQn);
@@ -77,34 +77,39 @@ void TIM3_OneShot_Init(void)
     GPIOA->CRL &= ~(GPIO_CRL_CNF6 | GPIO_CRL_MODE6);
     GPIOA->CRL |= GPIO_CRL_CNF6_1 | GPIO_CRL_MODE6;  // AF push-pull, 50MHz
     
-    // Timer configuration
+    // Timer configuration - set prescaler FIRST
     TIM3->PSC = 7;  // Same 1us resolution (8MHz / 8)
-    TIM3->ARR = 1000;  // 1ms pulse width (adjust as needed)
+    TIM3->ARR = 1000;  // Total period: 1000us
+    TIM3->CCR1 = 1000;  // Pulse width
     
-    // One-pulse mode
+    // Generate update event to load PSC, ARR and CCR1 into shadow registers
+    TIM3->EGR = TIM_EGR_UG;
+    // Clear the UIF flag that gets set by UG
+    TIM3->SR = 0;
+    
+    // WORKAROUND: Manually enable and disable timer to load prescaler
+    // The prescaler only loads on an actual counter update event with CEN=1
+    TIM3->CR1 |= TIM_CR1_CEN;  // Enable counter briefly
+    TIM3->CR1 &= ~TIM_CR1_CEN; // Disable it
+    TIM3->CNT = 0;             // Reset counter
+    TIM3->SR = 0;              // Clear all flags again
+    
+    // One-pulse mode - MUST be set BEFORE configuring output
     TIM3->CR1 |= TIM_CR1_OPM;  // One-pulse mode
+    TIM3->CR1 |= TIM_CR1_ARPE; // Auto-reload preload enable
     
     // Configure CC1 as output
-    TIM3->CCMR1 &= ~TIM_CCMR1_CC1S;  // CC1 as output
+    TIM3->CCMR1 = 0;  // Clear first
+    TIM3->CCMR1 |= (TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2);  // PWM mode 1 (110)
+    TIM3->CCMR1 |= TIM_CCMR1_OC1PE;  // Output compare preload enable
     
-    // PWM mode 1: output high when CNT < CCR1
-    TIM3->CCMR1 &= ~TIM_CCMR1_OC1M;
-    TIM3->CCMR1 |= (TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2);  // PWM mode 1
-    TIM3->CCMR1 |= TIM_CCMR1_OC1PE;  // Preload enable
+    // Enable output - active high
+    TIM3->CCER = TIM_CCER_CC1E;
     
-    // Set compare value (pulse stays high until this count)
-    TIM3->CCR1 = 1000;  // Pulse width in us
-    
-    // Enable output
-    TIM3->CCER |= TIM_CCER_CC1E;
-    
-    // HARDWARE TRIGGER CONFIGURATION
-    // Configure TIM3 as slave, triggered by TIM2 (ITR1)
-    TIM3->SMCR &= ~TIM_SMCR_TS;     // Clear trigger selection
+    // HARDWARE TRIGGER CONFIGURATION - configure LAST
+    TIM3->SMCR = 0;  // Clear first
     TIM3->SMCR |= TIM_SMCR_TS_0;    // TS = 001 = ITR1 (TIM2 for TIM3)
-    
-    TIM3->SMCR &= ~TIM_SMCR_SMS;    // Clear slave mode
-    TIM3->SMCR |= TIM_SMCR_SMS_2 | TIM_SMCR_SMS_1;  // SMS = 110 = Trigger mode
+    TIM3->SMCR |= (TIM_SMCR_SMS_2 | TIM_SMCR_SMS_1);  // SMS = 110 = Trigger mode
     
     // Don't start TIM3 manually - it will be triggered by TIM2
 }
@@ -141,6 +146,3 @@ void Timers_Init(void)
     TIM3_OneShot_Init();       // Then one-shot output
 }
 
-#endif  //  STM32F1
-
-//  FIN

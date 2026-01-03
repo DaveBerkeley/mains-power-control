@@ -111,7 +111,7 @@ int main(void)
     PO_DEBUG("Timers_Init()");
     Timers_Init();
 
-    TIM3_SetPulseWidth(100); // us
+    //TIM3_SetPulseWidth(10000); // us
 
     while (true)
     {
@@ -120,6 +120,14 @@ int main(void)
         TIM_TypeDef *tim2 = TIM2;
         TIM_TypeDef *tim3 = TIM3;
         PO_DEBUG("%lu %d %lu %lu", period_us, capture_ready, tim2->CNT, tim3->CNT);
+
+
+//PO_DEBUG("TIM3: PSC=%lu ARR=%lu CCR1=%lu CCMR1=0x%04lX CCER=0x%04lX CR1=0x%04lX",
+//        TIM3->PSC, TIM3->ARR, TIM3->CCR1, TIM3->CCMR1, TIM3->CCER, TIM3->CR1);
+
+//PO_DEBUG("RCC_CFGR: 0x%08lX, APB1 prescaler: %lu", RCC->CFGR, (RCC->CFGR & RCC_CFGR_PPRE1) >> 8);
+
+        PO_DEBUG("TIM3: PSC=%lu ARR=%lu CCR1=%lu CNT=%lu", TIM3->PSC, TIM3->ARR, TIM3->CCR1, TIM3->CNT);
     }
 
     return 0;
