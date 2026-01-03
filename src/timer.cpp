@@ -110,7 +110,6 @@ void TIM3_SetPulseWidth(uint32_t pulse_width_us)
 {
     // Update pulse width (will take effect on next trigger)
     TIM3->ARR = pulse_width_us;
-    TIM3->CCR1 = pulse_width_us;
 }
 
 // TIM2 interrupt handler - period is directly available in CCR1!
