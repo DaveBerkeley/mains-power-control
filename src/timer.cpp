@@ -12,7 +12,8 @@
 
 // Timer configuration
 // TIM2 - Input Capture on CH1 (PA0)
-// TIM3 - One-shot output on CH1 (PA6)
+// TIM3 - Calibration pulse on CH1 (PA6)
+// TIM4 - MOC3020 trigger on CH1 (PB6)
 
 volatile uint32_t period_us = 0;
 volatile uint8_t capture_ready = 0;
@@ -29,36 +30,34 @@ void TIM2_InputCapture_Init(void)
     GPIOA->CRL |= GPIO_CRL_CNF0_0;  // Floating input
     
     // Timer configuration
-    // Prescaler: divide by 8 to get 1MHz (1us resolution) assuming 8MHz clock
     TIM2->PSC = 7;  // (8MHz / 8) = 1MHz
     TIM2->ARR = 0xFFFFFFFF;  // Max period (32-bit timer)
     
     // Configure CC1 as input, IC1 mapped to TI1
     TIM2->CCMR1 &= ~TIM_CCMR1_CC1S;
-    TIM2->CCMR1 |= TIM_CCMR1_CC1S_0;  // CC1 channel is input, IC1 mapped to TI1
+    TIM2->CCMR1 |= TIM_CCMR1_CC1S_0;
     
     // No input filter, no prescaler
     TIM2->CCMR1 &= ~(TIM_CCMR1_IC1F | TIM_CCMR1_IC1PSC);
     
-    // Capture on rising edge (default, but explicit)
+    // Capture on rising edge
     TIM2->CCER &= ~(TIM_CCER_CC1P | TIM_CCER_CC1NP);
     
     // Enable capture and interrupt
-    TIM2->CCER |= TIM_CCER_CC1E;  // Enable capture
-    TIM2->DIER |= TIM_DIER_CC1IE; // Enable CC1 interrupt
+    TIM2->CCER |= TIM_CCER_CC1E;
+    TIM2->DIER |= TIM_DIER_CC1IE;
     
     // SLAVE MODE: Reset mode - counter resets on TI1 rising edge
-    TIM2->SMCR &= ~TIM_SMCR_TS;     // Clear trigger selection
-    TIM2->SMCR |= (TIM_SMCR_TS_2 | TIM_SMCR_TS_0);  // TS = 101 = Filtered Timer Input 1 (TI1FP1)
-    
-    TIM2->SMCR &= ~TIM_SMCR_SMS;    // Clear slave mode
-    TIM2->SMCR |= TIM_SMCR_SMS_2;   // SMS = 100 = Reset mode
+    TIM2->SMCR &= ~TIM_SMCR_TS;
+    TIM2->SMCR |= (TIM_SMCR_TS_2 | TIM_SMCR_TS_0);  // TS = 101 = TI1FP1
+    TIM2->SMCR &= ~TIM_SMCR_SMS;
+    TIM2->SMCR |= TIM_SMCR_SMS_2;  // SMS = 100 = Reset mode
     
     // MASTER MODE: Generate trigger on Reset (when counter resets)
     TIM2->CR2 &= ~TIM_CR2_MMS;
-    TIM2->CR2 |= TIM_CR2_MMS_1;  // MMS = 010 = Update (counter reset generates TRGO)
+    TIM2->CR2 |= TIM_CR2_MMS_1;  // MMS = 010 = Update
     
-    // Enable TIM2 interrupt in NVIC (for period measurement)
+    // Enable TIM2 interrupt in NVIC
     NVIC_EnableIRQ(TIM2_IRQn);
     NVIC_SetPriority(TIM2_IRQn, 0);
     
@@ -66,7 +65,7 @@ void TIM2_InputCapture_Init(void)
     TIM2->CR1 |= TIM_CR1_CEN;
 }
 
-// Initialize TIM3 for one-shot output with hardware trigger
+// Initialize TIM3 for calibration pulse with hardware trigger
 void TIM3_OneShot_Init(void)
 {
     // Enable clocks
@@ -78,60 +77,90 @@ void TIM3_OneShot_Init(void)
     GPIOA->CRL |= GPIO_CRL_CNF6_1 | GPIO_CRL_MODE6;
     
     // Timer configuration
-    // For a 500µs HIGH pulse:
-    // ARR = delay + pulse_width - 1
-    // CCR1 = delay (time before pulse goes HIGH)
-    // Pulse width = ARR - CCR1
-    
     TIM3->PSC = 7;       // 8MHz / 8 = 1MHz (1µs per tick)
-    TIM3->CCR1 = 1;      // Delay: 1µs (nearly immediate)
-    TIM3->ARR = 500;     // Total period: 501µs (0-500)
-    // Pulse width = 500 - 1 = 499µs HIGH
+    TIM3->CCR1 = 1;      // Delay: 1µs
+    TIM3->ARR = 500;     // Total period: 501µs
     
     // One-pulse mode
     TIM3->CR1 = TIM_CR1_OPM;
     
+    // MASTER MODE: Generate trigger on update event for TIM4
+    TIM3->CR2 = TIM_CR2_MMS_1;  // MMS = 010 = Update event
+    (void)TIM3->CR2;  // Ensure write completes
+    
     // PWM mode 2: Output LOW when CNT < CCR1, HIGH when CNT >= CCR1
-    // So output goes HIGH at count=1, stays HIGH until count=500 (ARR)
-    TIM3->CCMR1 = (7 << 4) | TIM_CCMR1_OC1PE;  // OC1M=111 (PWM mode 2), preload
+    TIM3->CCMR1 = (7 << 4) | TIM_CCMR1_OC1PE;
     
     // Enable output
     TIM3->CCER = TIM_CCER_CC1E;
     
-    // Load all registers
+    // Load registers
     TIM3->EGR = TIM_EGR_UG;
     
-    // Trigger mode: ITR1 (TIM2)
+    // SLAVE MODE: Triggered by TIM2 (ITR1)
     TIM3->SMCR = (1 << 4) | (6 << 0);  // TS=001, SMS=110
 }
 
-// Trigger one-shot pulse (optional - only needed if you want to change pulse width dynamically)
-void TIM3_SetPulseWidth(uint32_t pulse_width_us)
+// Initialize TIM4 for MOC3020 trigger pulse on PB6
+void TIM4_TriggerPulse_Init(void)
 {
-    // Update pulse width (will take effect on next trigger)
-    TIM3->ARR = pulse_width_us;
+    // Enable clocks
+    RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
+    RCC->APB1ENR |= RCC_APB1ENR_TIM4EN;
+    
+    // Configure PB6 as alternate function push-pull (TIM4_CH1)
+    GPIOB->CRL &= ~(GPIO_CRL_CNF6 | GPIO_CRL_MODE6);
+    GPIOB->CRL |= GPIO_CRL_CNF6_1 | GPIO_CRL_MODE6;
+    
+    // Timer configuration
+    TIM4->PSC = 7;      // 8MHz / 8 = 1MHz
+    TIM4->CCR1 = 1;     // Pulse starts immediately
+    TIM4->ARR = 20;     // 20µs pulse width
+    
+    // One-pulse mode
+    TIM4->CR1 = TIM_CR1_OPM;
+    
+    // PWM mode 2
+    TIM4->CCMR1 = (7 << 4) | TIM_CCMR1_OC1PE;
+    
+    // Enable output
+    TIM4->CCER = TIM_CCER_CC1E;
+    
+    // Load registers
+    TIM4->EGR = TIM_EGR_UG;
+    
+    // SLAVE MODE: Triggered by TIM3 (ITR2)
+    TIM4->SMCR = (2 << 4) | (6 << 0);  // TS=010 (ITR2=TIM3), SMS=110
 }
 
-// TIM2 interrupt handler - period is directly available in CCR1!
+// TIM2 interrupt handler - period is directly available in CCR1
 extern "C" void TIM2_IRQHandler(void)
 {
     if (TIM2->SR & TIM_SR_CC1IF)
     {
-        // Clear interrupt flag
         TIM2->SR &= ~TIM_SR_CC1IF;
-        
-        // Read captured value - this IS the period!
-        // Counter resets to 0 on each capture, so CCR1 contains the period directly
         period_us = TIM2->CCR1;
         capture_ready = 1;
-        
-        // TIM3 is triggered automatically by hardware - no need to call TIM3_TriggerPulse()!
     }
 }
 
-// Initialize both timers
+// Initialize all timers
 void Timers_Init(void)
 {
-    TIM2_InputCapture_Init();  // Input capture first
-    TIM3_OneShot_Init();       // Then one-shot output
+    TIM2_InputCapture_Init();
+    TIM3_OneShot_Init();
+    TIM4_TriggerPulse_Init();
 }
+
+// Set TIM3 calibration pulse width (in microseconds)
+void TIM3_SetPulseWidth(uint32_t pulse_width_us)
+{
+    TIM3->ARR = pulse_width_us;
+}
+
+// Set TIM4 trigger pulse width (optional, default 20µs)
+void TIM4_SetPulseWidth(uint32_t pulse_width_us)
+{
+    TIM4->ARR = pulse_width_us;
+}
+

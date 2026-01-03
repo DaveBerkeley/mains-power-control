@@ -112,17 +112,22 @@ int main(void)
     Timers_Init();
 
     //TIM3_SetPulseWidth(9000);
-    TIM3_SetPulseWidth(1);
+    //TIM4_SetPulseWidth(100);
+
+    uint32_t width = 1;
 
     while (true)
     {
-        ms_delay(100);
-        PO_DEBUG("%lu", period_us);
+        //ms_delay(100);
+        //PO_DEBUG("%lu %lu", period_us, TIM4->CNT);
+        while (!capture_ready)
+            ;
+        capture_ready = 0;
+        TIM3_SetPulseWidth(width);
 
-
-//PO_DEBUG("TIM3: PSC=%lu ARR=%lu CCR1=%lu CCMR1=0x%04lX CCER=0x%04lX CR1=0x%04lX", TIM3->PSC, TIM3->ARR, TIM3->CCR1, TIM3->CCMR1, TIM3->CCER, TIM3->CR1);
-//PO_DEBUG("RCC_CFGR: 0x%08lX, APB1 prescaler: %lu", RCC->CFGR, (RCC->CFGR & RCC_CFGR_PPRE1) >> 8);
-//PO_DEBUG("TIM3: PSC=%lu ARR=%lu CCR1=%lu CNT=%lu", TIM3->PSC, TIM3->ARR, TIM3->CCR1, TIM3->CNT);
+        width += 1;
+        if (width >= 9000)
+            width = 1;
     }
 
     return 0;
