@@ -75,43 +75,34 @@ void TIM3_OneShot_Init(void)
     
     // Configure PA6 as alternate function push-pull (TIM3_CH1)
     GPIOA->CRL &= ~(GPIO_CRL_CNF6 | GPIO_CRL_MODE6);
-    GPIOA->CRL |= GPIO_CRL_CNF6_1 | GPIO_CRL_MODE6;  // AF push-pull, 50MHz
+    GPIOA->CRL |= GPIO_CRL_CNF6_1 | GPIO_CRL_MODE6;
     
-    // Timer configuration - set prescaler FIRST
-    TIM3->PSC = 7;  // Same 1us resolution (8MHz / 8)
-    TIM3->ARR = 1000;  // Total period: 1000us
-    TIM3->CCR1 = 1000;  // Pulse width
+    // Timer configuration
+    // For a 500µs HIGH pulse:
+    // ARR = delay + pulse_width - 1
+    // CCR1 = delay (time before pulse goes HIGH)
+    // Pulse width = ARR - CCR1
     
-    // Generate update event to load PSC, ARR and CCR1 into shadow registers
-    TIM3->EGR = TIM_EGR_UG;
-    // Clear the UIF flag that gets set by UG
-    TIM3->SR = 0;
+    TIM3->PSC = 7;       // 8MHz / 8 = 1MHz (1µs per tick)
+    TIM3->CCR1 = 1;      // Delay: 1µs (nearly immediate)
+    TIM3->ARR = 500;     // Total period: 501µs (0-500)
+    // Pulse width = 500 - 1 = 499µs HIGH
     
-    // WORKAROUND: Manually enable and disable timer to load prescaler
-    // The prescaler only loads on an actual counter update event with CEN=1
-    TIM3->CR1 |= TIM_CR1_CEN;  // Enable counter briefly
-    TIM3->CR1 &= ~TIM_CR1_CEN; // Disable it
-    TIM3->CNT = 0;             // Reset counter
-    TIM3->SR = 0;              // Clear all flags again
+    // One-pulse mode
+    TIM3->CR1 = TIM_CR1_OPM;
     
-    // One-pulse mode - MUST be set BEFORE configuring output
-    TIM3->CR1 |= TIM_CR1_OPM;  // One-pulse mode
-    TIM3->CR1 |= TIM_CR1_ARPE; // Auto-reload preload enable
+    // PWM mode 2: Output LOW when CNT < CCR1, HIGH when CNT >= CCR1
+    // So output goes HIGH at count=1, stays HIGH until count=500 (ARR)
+    TIM3->CCMR1 = (7 << 4) | TIM_CCMR1_OC1PE;  // OC1M=111 (PWM mode 2), preload
     
-    // Configure CC1 as output
-    TIM3->CCMR1 = 0;  // Clear first
-    TIM3->CCMR1 |= (TIM_CCMR1_OC1M_1 | TIM_CCMR1_OC1M_2);  // PWM mode 1 (110)
-    TIM3->CCMR1 |= TIM_CCMR1_OC1PE;  // Output compare preload enable
-    
-    // Enable output - active high
+    // Enable output
     TIM3->CCER = TIM_CCER_CC1E;
     
-    // HARDWARE TRIGGER CONFIGURATION - configure LAST
-    TIM3->SMCR = 0;  // Clear first
-    TIM3->SMCR |= TIM_SMCR_TS_0;    // TS = 001 = ITR1 (TIM2 for TIM3)
-    TIM3->SMCR |= (TIM_SMCR_SMS_2 | TIM_SMCR_SMS_1);  // SMS = 110 = Trigger mode
+    // Load all registers
+    TIM3->EGR = TIM_EGR_UG;
     
-    // Don't start TIM3 manually - it will be triggered by TIM2
+    // Trigger mode: ITR1 (TIM2)
+    TIM3->SMCR = (1 << 4) | (6 << 0);  // TS=001, SMS=110
 }
 
 // Trigger one-shot pulse (optional - only needed if you want to change pulse width dynamically)
@@ -145,4 +136,3 @@ void Timers_Init(void)
     TIM2_InputCapture_Init();  // Input capture first
     TIM3_OneShot_Init();       // Then one-shot output
 }
-
