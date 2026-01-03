@@ -22,12 +22,7 @@ volatile uint8_t capture_ready = 0;
 void TIM2_InputCapture_Init(void)
 {
     // Enable clocks
-    RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
     RCC->APB1ENR |= RCC_APB1ENR_TIM2EN;
-    
-    // Configure PA0 as input floating (TIM2_CH1)
-    GPIOA->CRL &= ~(GPIO_CRL_CNF0 | GPIO_CRL_MODE0);
-    GPIOA->CRL |= GPIO_CRL_CNF0_0;  // Floating input
     
     // Timer configuration
     TIM2->PSC = 7;  // (8MHz / 8) = 1MHz
@@ -69,12 +64,7 @@ void TIM2_InputCapture_Init(void)
 void TIM3_OneShot_Init(void)
 {
     // Enable clocks
-    RCC->APB2ENR |= RCC_APB2ENR_IOPAEN;
     RCC->APB1ENR |= RCC_APB1ENR_TIM3EN;
-    
-    // Configure PA6 as alternate function push-pull (TIM3_CH1)
-    GPIOA->CRL &= ~(GPIO_CRL_CNF6 | GPIO_CRL_MODE6);
-    GPIOA->CRL |= GPIO_CRL_CNF6_1 | GPIO_CRL_MODE6;
     
     // Timer configuration
     TIM3->PSC = 7;       // 8MHz / 8 = 1MHz (1µs per tick)
@@ -105,12 +95,7 @@ void TIM3_OneShot_Init(void)
 void TIM4_TriggerPulse_Init(void)
 {
     // Enable clocks
-    RCC->APB2ENR |= RCC_APB2ENR_IOPBEN;
     RCC->APB1ENR |= RCC_APB1ENR_TIM4EN;
-    
-    // Configure PB6 as alternate function push-pull (TIM4_CH1)
-    GPIOB->CRL &= ~(GPIO_CRL_CNF6 | GPIO_CRL_MODE6);
-    GPIOB->CRL |= GPIO_CRL_CNF6_1 | GPIO_CRL_MODE6;
     
     // Timer configuration
     TIM4->PSC = 7;      // 8MHz / 8 = 1MHz

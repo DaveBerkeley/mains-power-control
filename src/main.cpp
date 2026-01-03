@@ -29,9 +29,12 @@ typedef struct {
 } IoDef;
 
 static const IoDef gpios[] = {
+    {   GPIOC, 13, STM32_GPIO::OUTPUT, & led, }, // LED
     {   GPIOA, 9, STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // UART Tx
     {   GPIOA, 10, STM32_GPIO::IO(STM32_GPIO::INPUT | STM32_GPIO::ALT), }, // UART Rx
-    {   GPIOC, 13, STM32_GPIO::OUTPUT, & led, }, // LED
+    {   GPIOA, 0, STM32_GPIO::IO(STM32_GPIO::INPUT | STM32_GPIO::ALT), }, // TIM2 counter/timer input
+    {   GPIOA, 6, STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // TIM3 phase output
+    {   GPIOB, 6, STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // TIM4 triac output
     { 0 },
 };
 
@@ -111,8 +114,7 @@ int main(void)
     PO_DEBUG("Timers_Init()");
     Timers_Init();
 
-    //TIM3_SetPulseWidth(9000);
-    //TIM4_SetPulseWidth(100);
+    TIM4_SetPulseWidth(100);
 
     uint32_t width = 1;
 
