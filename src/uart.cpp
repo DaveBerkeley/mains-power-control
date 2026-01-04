@@ -7,6 +7,39 @@ class _STM32_UART;
 
 static _STM32_UART *uarts[3];
 
+typedef struct {
+    uint32_t pwr_mask;
+    volatile uint32_t *pwr_reg;
+    IRQn_Type irq;
+}   UartInfo;
+
+static const UartInfo *get_info(USART_TypeDef *base)
+{
+    switch ((uint32_t) base)
+    {
+        case USART1_BASE : 
+        {
+            const static UartInfo info = { RCC_APB2ENR_USART1EN, & RCC->APB2ENR, USART1_IRQn };
+            return & info;
+        }
+        case USART2_BASE : 
+        {
+            const static UartInfo info = { RCC_APB1ENR_USART2EN, & RCC->APB1ENR, USART2_IRQn };
+            return & info;
+        }
+        case USART3_BASE : 
+        {
+            const static UartInfo info = { RCC_APB1ENR_USART3EN, & RCC->APB1ENR, USART3_IRQn };
+            return & info;
+        }
+    }
+    return 0;
+}
+
+    /*
+     *
+     */
+
 class _STM32_UART : public STM32_UART
 {
     USART_TypeDef *base;
@@ -15,58 +48,42 @@ class _STM32_UART : public STM32_UART
     uint32_t rx_size;
     uint32_t rx_wr;
     uint32_t rx_rd;
+    uint32_t rx_mask;
 
     void enable_port_power()
     {
-        uint32_t pwr_mask = 0;
-        volatile uint32_t *reg = 0;
+        const UartInfo *info = get_info(base);
+        ASSERT(info);
 
-        switch ((uint32_t) base)
+        if (!(ck_enabled & info->pwr_mask))
         {
-            case USART1_BASE : pwr_mask = RCC_APB2ENR_USART1EN; reg = & RCC->APB2ENR; break;
-            case USART2_BASE : pwr_mask = RCC_APB1ENR_USART2EN; reg = & RCC->APB1ENR; break;
-            case USART3_BASE : pwr_mask = RCC_APB1ENR_USART3EN; reg = & RCC->APB1ENR; break;
-            default : ASSERT(0);
+            *info->pwr_reg |= info->pwr_mask;
+            ck_enabled |= info->pwr_mask;
         }
-        if (!(ck_enabled & pwr_mask))
-        {
-            ASSERT(reg);
-            *reg |= pwr_mask;
-            ck_enabled |= pwr_mask;
-        }
-    }
-
-    static IRQn_Type base_to_irq(USART_TypeDef *base)
-    {
-        switch ((uint32_t) base)
-        {
-            case USART1_BASE : return USART1_IRQn;
-            case USART2_BASE : return USART2_IRQn;
-            case USART3_BASE : return USART3_IRQn;
-        }
-        ASSERT(0);
-        return TAMPER_IRQn; // never gets here
     }
 
     void make_buffer()
     {
         if (!rx_size) return;
-        // TODO : rx_buff must be a power of 2
         rx_buff = new char[rx_size];
         rx_wr = 0;
         rx_rd = 0;
-    }
+        rx_mask = rx_size - 1;
 
-    uint32_t mask(uint32_t p)
-    {
-        return p & (rx_size - 1);
+        // rx_buff must be a power of 2
+        int bits = 0;
+        for (uint32_t s = rx_size; s; s >>= 1)
+        {
+            if (s & 0x01) bits += 1;
+        }
+        ASSERT(bits == 1);
     }
 
     void buff_write(char c)
     {
         const uint32_t wr = (rx_wr + 1);
         if (wr == rx_rd) return; // buffer full
-        rx_buff[mask(rx_wr++)] = c;
+        rx_buff[rx_mask & (rx_wr++)] = c;
     }
 
 public:
@@ -97,9 +114,10 @@ public:
             case USART3_BASE : uarts[2] = this; break;
         }
 
-        IRQn_Type irq = base_to_irq(base);
-        NVIC_EnableIRQ(irq);
-        NVIC_SetPriority(irq, 0);
+        const UartInfo *info = get_info(base);
+        ASSERT(info);
+        NVIC_EnableIRQ(info->irq);
+        NVIC_SetPriority(info->irq, 0);
     }
 
     ~_STM32_UART()
@@ -130,7 +148,7 @@ public:
         for (int i = 0; i < n; i++)
         {
             if (rx_wr == rx_rd) return i;
-            const char c = rx_buff[mask(rx_rd++)];
+            const char c = rx_buff[rx_mask & (rx_rd++)];
             *data++ = c;
         }
         return n;
