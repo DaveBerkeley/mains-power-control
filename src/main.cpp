@@ -107,10 +107,6 @@ int main(void)
 
     Timers_Init();
 
-    TIM4_SetPulseWidth(100);
-
-    uint32_t width = 1;
-
     static CLI cli { 0 };
     init_cli(& cli, uart);
 
@@ -129,15 +125,6 @@ int main(void)
             }
             cli_process(& cli, c);
         }
-
-        while (!capture_ready)
-            ;
-        capture_ready = 0;
-        TIM3_SetPulseWidth(width);
-
-        width += 1;
-        if (width >= 9000)
-            width = 1;
     }
 
     return 0;

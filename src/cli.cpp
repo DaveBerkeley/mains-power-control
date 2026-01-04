@@ -45,14 +45,13 @@ static void print_help_nest(CLI *cli, CliCommand *cmd, int nest)
     }
 }
 
-static void cmd_help(CLI *cli, CliCommand *cmd)
+static void cmd_help(CLI *cli, CliCommand *)
 {
-    IGNORE(cmd);
     const char *s = cli_get_arg(cli, 0);
 
     if (s)
     {
-        cmd = cli_find(& cli->head, match_name, (void*) s);
+        CliCommand *cmd = cli_find(& cli->head, match_name, (void*) s);
         if (!cmd)
         {
             cli_print(cli, "command not found%s", cli->eol);
@@ -78,10 +77,47 @@ static void cmd_show(CLI *cli, CliCommand *)
     cli_print(cli, "period=%lu%s", period_us, cli->eol);
 }
 
+static void cmd_phase(CLI *cli, CliCommand *)
+{
+    int value = 0;
+    int triac = 0;
+    int idx = 0;
+
+    cli_print(cli, "\n\r");
+
+    const char *s = cli_get_arg(cli, idx++);
+    if (!s)
+    {
+        cli_print(cli, "expected <phase>%s", cli->eol);
+        return;
+    }
+
+    if (!cli_parse_int(s, & value, 0))
+    {
+        cli_print(cli, "invalid phase '%s'%s", s, cli->eol);
+        return;
+    }
+
+    s = cli_get_arg(cli, idx++);
+    if (s)
+    {
+        cli_parse_int(s, & triac, 0);
+    }
+    
+    TIM3_SetPulseWidth(value);
+    cli_print(cli, "set phase to %u%s", value, cli->eol);
+    if (triac)
+    {
+        TIM4_SetPulseWidth(triac);
+        cli_print(cli, "set triac pulse width to %u%s", triac, cli->eol);
+    }
+}
+
 static CliCommand cli_commands[] = {
     { "reset",  cmd_reset,  "CPU Reset", 0, 0, 0 },
     { "help",   cmd_help,   "help <cmd>", 0, 0, 0 },
     { "show",   cmd_show,   "show system state", 0, 0, 0 },
+    { "phase",  cmd_phase,  "set triac phase <phase> [triac_pulse_width]", 0, 0, 0 },
     { 0, 0, 0, 0, 0, 0 },
 };
 
