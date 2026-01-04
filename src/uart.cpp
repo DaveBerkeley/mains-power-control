@@ -12,8 +12,9 @@ class _STM32_UART : public STM32_UART
     USART_TypeDef *base;
     static uint32_t ck_enabled;
     char *rx_buff;
-    int32_t rx_size;
-    int32_t rx_idx;
+    uint32_t rx_size;
+    uint32_t rx_wr;
+    uint32_t rx_rd;
 
     void enable_port_power()
     {
@@ -47,12 +48,35 @@ class _STM32_UART : public STM32_UART
         return TAMPER_IRQn; // never gets here
     }
 
+    void make_buffer()
+    {
+        if (!rx_size) return;
+        // TODO : rx_buff must be a power of 2
+        rx_buff = new char[rx_size];
+        rx_wr = 0;
+        rx_rd = 0;
+    }
+
+    uint32_t mask(uint32_t p)
+    {
+        return p & (rx_size - 1);
+    }
+
+    void buff_write(char c)
+    {
+        const uint32_t wr = (rx_wr + 1);
+        if (wr == rx_rd) return; // buffer full
+        rx_buff[mask(rx_wr++)] = c;
+    }
+
 public:
     _STM32_UART(USART_TypeDef *_base, uint32_t _rx_size)
     :   base(_base),
+        rx_buff(0),
         rx_size(_rx_size)
     {
         enable_port_power();
+        make_buffer();
  
         // Configure USART1
         // Assuming 8MHz clock, baud rate = 115200
@@ -78,6 +102,11 @@ public:
         NVIC_SetPriority(irq, 0);
     }
 
+    ~_STM32_UART()
+    {
+        delete[] rx_buff;
+    }
+
     // Send a single character
     void putchar(char c)
     {
@@ -98,19 +127,25 @@ public:
 
     virtual int rx(char* data, int n) override
     {
-        // TODO
-        ASSERT(0);
+        for (int i = 0; i < n; i++)
+        {
+            if (rx_wr == rx_rd) return i;
+            const char c = rx_buff[mask(rx_rd++)];
+            *data++ = c;
+        }
         return n;
     }
 
     void on_interrupt()
     {
-//    if (TIM2->SR & TIM_SR_CC1IF)
-//    {
-//        TIM2->SR &= ~TIM_SR_CC1IF;
-//        period_us = TIM2->CCR1;
-//        capture_ready = 1;
-//    }
+        // check if it is an Rx interrupt
+        if (base->SR & USART_SR_RXNE)
+        {
+            char c = base->DR;
+            buff_write(c);
+            // clear the interrupt
+            base->SR &= ~USART_SR_RXNE;
+        }
     }
 
     static void on_interrupt(uint32_t idx)

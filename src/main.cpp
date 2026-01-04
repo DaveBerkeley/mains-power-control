@@ -4,7 +4,6 @@
 #include <string.h>
 
 #include "panglos/debug.h"
-#include "panglos/io.h"
 #include "panglos/logger.h"
 
 #include "cli/src/cli.h"
@@ -12,6 +11,7 @@
 #include "gpio.h"
 #include "uart.h"
 #include "timer.h"
+#include "cli.h"
 
 using namespace panglos;
 
@@ -57,17 +57,6 @@ volatile uint32_t tick;
      *
      */
 
-static void ms_delay(int ms)
-{
-    while (ms-- > 0)
-    {
-        for (volatile int x=500; x--; )
-        {
-            __asm("nop");
-        }
-    }
-}
-
 extern "C" void SysTick_Handler(void)
 {
     tick += 1;
@@ -90,6 +79,10 @@ static const char *banner[] = {
     "                  |___/               ",
 };
 
+    /*
+     *
+     */
+
 int main(void)
 {
     // initialise all the GPIO pins
@@ -106,7 +99,7 @@ int main(void)
         uart->tx(*t, strlen(*t));
         uart->tx("\r\n", 2);
     }
-    const char *text = "PanglOS on STM32\r\n";
+    const char *text = "PanglOS on STM32 " __TIME__ " " __DATE__ "\r\n";
     uart->tx(text, strlen(text));
  
     const int err = SysTick_Config(SystemCoreClock / 1000);
@@ -118,27 +111,24 @@ int main(void)
 
     uint32_t width = 1;
 
-    Out *out = uart;
-    FmtOut fmt_out(out, 0);
-
     static CLI cli { 0 };
-
-    CliOutput output = {
-        .fprintf = FmtOut::xprintf,
-        .ctx = & fmt_out,
-    };
-
-    cli.output = & output;
-    cli.eol = "\r\n";
-    cli.prompt = "> ";
-    cli_init(& cli, 96, 0);
-
-    cli_print(& cli, "\r\n%s", "Hello world\r\n");
+    init_cli(& cli, uart);
 
     while (true)
     {
-        //ms_delay(100);
-        PO_DEBUG("%lu %lu", period_us, TIM4->CNT);
+        char buff[16];
+        int n = uart->rx(buff, sizeof(buff));
+        for (int i = 0; i < n; i++)
+        {
+            char c = buff[i];
+            switch (c)
+            {
+                case '\r' : c = '\n'; break;
+                case '\n' : continue;
+                default : cli_print(& cli, "%c", c); break;
+            }
+            cli_process(& cli, c);
+        }
 
         while (!capture_ready)
             ;
