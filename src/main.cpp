@@ -19,9 +19,14 @@ using namespace panglos;
     // blue-pill board!
 #endif
 
-#define DEBUG_UART (USART1)
+    /*
+     *  IO configuration
+     */
 
-static GPIO *led;
+#define DEBUG_UART (USART1)
+#define COMMS_UART (USART2)
+
+GPIO *led;
 
 typedef struct {
     GPIO_TypeDef *port;
@@ -32,11 +37,13 @@ typedef struct {
 
 static const IoDef gpios[] = {
     {   GPIOC, 13, STM32_GPIO::OUTPUT, & led, }, // LED
-    {   GPIOA, 9, STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // UART Tx
+    {   GPIOA, 9,  STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // UART Tx
     {   GPIOA, 10, STM32_GPIO::IO(STM32_GPIO::INPUT | STM32_GPIO::ALT), }, // UART Rx
-    {   GPIOA, 0, STM32_GPIO::IO(STM32_GPIO::INPUT | STM32_GPIO::ALT), }, // TIM2 counter/timer input
-    {   GPIOA, 6, STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // TIM3 phase output
-    {   GPIOB, 6, STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // TIM4 triac output
+    {   GPIOA, 2,  STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // Comms Tx
+    {   GPIOA, 3,  STM32_GPIO::IO(STM32_GPIO::INPUT | STM32_GPIO::ALT), }, // Comms Rx
+    {   GPIOA, 0,  STM32_GPIO::IO(STM32_GPIO::INPUT | STM32_GPIO::ALT), }, // TIM2 counter/timer input
+    {   GPIOA, 6,  STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // TIM3 phase output
+    {   GPIOB, 6,  STM32_GPIO::IO(STM32_GPIO::OUTPUT | STM32_GPIO::ALT), }, // TIM4 triac output
     { 0 },
 };
 
@@ -52,6 +59,7 @@ void init_gpio(const IoDef *gpios)
 }
 
 volatile uint32_t tick;
+bool flash = true;
 
     /*
      *
@@ -60,14 +68,17 @@ volatile uint32_t tick;
 extern "C" void SysTick_Handler(void)
 {
     tick += 1;
-    if ((tick % 100) == 0)
-        if (led)
-            led->toggle();
+    if (flash)
+        if ((tick % 100) == 0)
+            if (led)
+                led->toggle();
 }
 
     /*
      *
      */
+
+// echo "PanglOS" | figlet | sed 's/\\/\\\\/g'
 
 static const char *banner[] = {
     "",
@@ -77,7 +88,20 @@ static const char *banner[] = {
     "|  __/ (_| | | | | (_| | | |_| |___) |",
     "|_|   \\__,_|_| |_|\\__, |_|\\___/|____/ ",
     "                  |___/               ",
+    "",
+    "PanglOS on STM32F1 " __TIME__ " " __DATE__ "",
+    "https://github.com/DaveBerkeley/panglos",
+    0,
 };
+
+    /*
+     *
+     */
+
+void poll_comms(UART *uart)
+{
+    //  TODO : could just use the CLI
+}
 
     /*
      *
@@ -99,8 +123,6 @@ int main(void)
         uart->tx(*t, strlen(*t));
         uart->tx("\r\n", 2);
     }
-    const char *text = "PanglOS on STM32 " __TIME__ " " __DATE__ "\r\n";
-    uart->tx(text, strlen(text));
  
     const int err = SysTick_Config(SystemCoreClock / 1000);
     ASSERT(!err);
@@ -110,8 +132,12 @@ int main(void)
     static CLI cli { 0 };
     init_cli(& cli, uart);
 
+    UART *comms = STM32_UART::create(COMMS_UART, 32);
+
     while (true)
     {
+        poll_comms(comms);
+
         char buff[16];
         int n = uart->rx(buff, sizeof(buff));
         for (int i = 0; i < n; i++)

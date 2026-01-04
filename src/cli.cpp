@@ -6,6 +6,7 @@
 #include "panglos/debug.h"
 #include "panglos/list.h"
 #include "panglos/io.h"
+#include "panglos/drivers/gpio.h"
 
 #include "cli/src/cli.h"
 
@@ -113,11 +114,43 @@ static void cmd_phase(CLI *cli, CliCommand *)
     }
 }
 
+static void cmd_led(CLI *cli, CliCommand *)
+{
+    int value = 0;
+    int idx = 0;
+
+    cli_print(cli, "\n\r");
+
+    const char *s = cli_get_arg(cli, idx++);
+    if (!s)
+    {
+        cli_print(cli, "expected <value>%s", cli->eol);
+        return;
+    }
+
+    if (!strcmp(s, "flash"))
+    {
+        flash = true;
+        return;
+    }
+
+    if (!cli_parse_int(s, & value, 0))
+    {
+        cli_print(cli, "invalid value '%s'%s", s, cli->eol);
+        return;
+    }
+
+    ASSERT(led);
+    flash = false;
+    led->set(!value);
+}
+
 static CliCommand cli_commands[] = {
     { "reset",  cmd_reset,  "CPU Reset", 0, 0, 0 },
     { "help",   cmd_help,   "help <cmd>", 0, 0, 0 },
     { "show",   cmd_show,   "show system state", 0, 0, 0 },
     { "phase",  cmd_phase,  "set triac phase <phase> [triac_pulse_width]", 0, 0, 0 },
+    { "led",    cmd_led,    "set led <0|1|flash>", 0, 0, 0 },
     { 0, 0, 0, 0, 0, 0 },
 };
 
