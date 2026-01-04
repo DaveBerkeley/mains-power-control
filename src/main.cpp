@@ -7,6 +7,8 @@
 #include "panglos/io.h"
 #include "panglos/logger.h"
 
+#include "cli/src/cli.h"
+
 #include "gpio.h"
 #include "uart.h"
 #include "timer.h"
@@ -90,11 +92,11 @@ static const char *banner[] = {
 
 int main(void)
 {
-    // initialise the GPIO pins
+    // initialise all the GPIO pins
     init_gpio(gpios);
 
     // create the main UART
-    UART *uart = STM32_UART::create(DEBUG_UART);
+    UART *uart = STM32_UART::create(DEBUG_UART, 32);
     // create a logger
     logger = new Logging(S_DEBUG, 0);
     logger->add(uart, S_DEBUG, 0);
@@ -107,21 +109,37 @@ int main(void)
     const char *text = "PanglOS on STM32\r\n";
     uart->tx(text, strlen(text));
  
-    PO_DEBUG("SysTick_Config()");
     const int err = SysTick_Config(SystemCoreClock / 1000);
     ASSERT(!err);
 
-    PO_DEBUG("Timers_Init()");
     Timers_Init();
 
     TIM4_SetPulseWidth(100);
 
     uint32_t width = 1;
 
+    Out *out = uart;
+    FmtOut fmt_out(out, 0);
+
+    static CLI cli { 0 };
+
+    CliOutput output = {
+        .fprintf = FmtOut::xprintf,
+        .ctx = & fmt_out,
+    };
+
+    cli.output = & output;
+    cli.eol = "\r\n";
+    cli.prompt = "> ";
+    cli_init(& cli, 96, 0);
+
+    cli_print(& cli, "\r\n%s", "Hello world\r\n");
+
     while (true)
     {
         //ms_delay(100);
-        //PO_DEBUG("%lu %lu", period_us, TIM4->CNT);
+        PO_DEBUG("%lu %lu", period_us, TIM4->CNT);
+
         while (!capture_ready)
             ;
         capture_ready = 0;

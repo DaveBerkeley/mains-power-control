@@ -8,7 +8,7 @@
 class STM32_UART : public panglos::UART
 {
 public:
-    static panglos::UART *create(USART_TypeDef *_base);
+    static panglos::UART *create(USART_TypeDef *_base, uint32_t rx_size);
 };
 
 #endif  //  STM32F1
