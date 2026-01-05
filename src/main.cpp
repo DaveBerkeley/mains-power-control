@@ -10,7 +10,6 @@
 
 #include "cli/src/cli.h"
 
-//#include "uart.h"
 #include "timer.h"
 #include "cli.h"
 
@@ -29,23 +28,25 @@ using namespace panglos;
 
 GPIO *led;
 
+typedef STM32F1_GPIO::IO IODEF;
+
 typedef struct {
     GPIO_TypeDef *port;
     uint32_t pin;
-    STM32F1_GPIO::IO io;
+    IODEF io;
     GPIO **gpio;
 } IoDef;
 
-static const STM32F1_GPIO::IO ALT_IN = STM32F1_GPIO::IO(STM32F1_GPIO::INPUT | STM32F1_GPIO::ALT);
-static const STM32F1_GPIO::IO ALT_OUT = STM32F1_GPIO::IO(STM32F1_GPIO::OUTPUT | STM32F1_GPIO::ALT);
+static const IODEF ALT_IN  = IODEF(STM32F1_GPIO::INPUT  | STM32F1_GPIO::ALT);
+static const IODEF ALT_OUT = IODEF(STM32F1_GPIO::OUTPUT | STM32F1_GPIO::ALT);
 
 static const IoDef gpios[] = {
     {   GPIOC, 13, STM32F1_GPIO::OUTPUT, & led, }, // LED
     {   GPIOA, 9,  ALT_OUT, }, // UART Tx
-    {   GPIOA, 10, ALT_IN, }, // UART Rx
+    {   GPIOA, 10, ALT_IN,  }, // UART Rx
     {   GPIOA, 2,  ALT_OUT, }, // Comms Tx
-    {   GPIOA, 3,  ALT_IN, }, // Comms Rx
-    {   GPIOA, 0,  ALT_IN, }, // TIM2 counter/timer input
+    {   GPIOA, 3,  ALT_IN,  }, // Comms Rx
+    {   GPIOA, 0,  ALT_IN,  }, // TIM2 counter/timer input
     {   GPIOA, 6,  ALT_OUT, }, // TIM3 phase output
     {   GPIOB, 6,  ALT_OUT, }, // TIM4 triac output
     { 0 },
@@ -56,7 +57,7 @@ void init_gpio(const IoDef *gpios)
     for (const IoDef *def = gpios; def->port; def++)
     {
         STM32F1_GPIO::IO io = def->io;
-        if (!def->gpio) io = STM32F1_GPIO::IO(io | STM32F1_GPIO::INIT_ONLY);
+        if (!def->gpio) io = IODEF(io | STM32F1_GPIO::INIT_ONLY);
         GPIO *gpio = STM32F1_GPIO::create(def->port, def->pin, io);
         if (def->gpio) *def->gpio = gpio;
     }

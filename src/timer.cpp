@@ -147,5 +147,16 @@ void TIM3_SetPulseWidth(uint32_t pulse_width_us)
 void TIM4_SetPulseWidth(uint32_t pulse_width_us)
 {
     TIM4->ARR = pulse_width_us;
+    if (!pulse_width_us)
+    {
+        // Disable timer
+        TIM4->CCER &= ~TIM_CCER_CC1E;
+    }
+    else
+    {
+        // Enable timer
+        TIM4->CCER = TIM_CCER_CC1E;
+    }
 }
 
+//  FIN
