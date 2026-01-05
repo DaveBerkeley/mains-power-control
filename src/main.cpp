@@ -5,11 +5,12 @@
 
 #include "panglos/debug.h"
 #include "panglos/logger.h"
+#include "panglos/stm32/gpio_f1.h"
+#include "panglos/stm32/uart_f1.h"
 
 #include "cli/src/cli.h"
 
-#include "gpio.h"
-#include "uart.h"
+//#include "uart.h"
 #include "timer.h"
 #include "cli.h"
 
@@ -116,7 +117,7 @@ int main(void)
     init_gpio(gpios);
 
     // create the main UART
-    UART *uart = STM32_UART::create(DEBUG_UART, 32);
+    UART *uart = STM32F1_UART::create(DEBUG_UART, 32);
     // create a logger
     logger = new Logging(S_DEBUG, 0);
     logger->add(uart, S_DEBUG, 0);
@@ -135,7 +136,7 @@ int main(void)
     static CLI cli { 0 };
     init_cli(& cli, uart);
 
-    UART *comms = STM32_UART::create(COMMS_UART, 32);
+    UART *comms = STM32F1_UART::create(COMMS_UART, 32);
 
     while (true)
     {

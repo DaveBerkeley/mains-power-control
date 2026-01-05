@@ -147,6 +147,9 @@ files = [
 #    'panglos/stm32/timer.h',
 #    'panglos/stm32/hal.h',
 #    'panglos/stm32/gpio_arm.h',
+#    'panglos/stm32/stm32fxxx_hal.h',
+    'panglos/stm32/gpio_f1.h',
+    'panglos/stm32/uart_f1.h',
 
     'panglos/arch.h',
 #    'panglos/riscv32/arch.h',
@@ -155,8 +158,9 @@ files = [
 #    'riscv32/arch.cpp',
 #    'xtensa/arch.cpp',
 #    'stm32/arch.cpp',
-#    'panglos/stm32/stm32fxxx_hal.h',
 
+    'stm32/gpio_f1.cpp',
+    'stm32/uart_f1.cpp',
 #    'stm32/hal.cpp',
 #    'stm32/gpio.cpp',
 #    'stm32/i2c.cpp',
