@@ -5,12 +5,9 @@
 
 #include "gpio.h"
 
-#undef ASSERT
-#define ASSERT(x) assert(x)
-
 #if defined(STM32F1)
 
-class _STM32_GPIO : public STM32_GPIO
+class _GPIO : public STM32F1_GPIO
 {
 private:
     static uint32_t ck_enabled;
@@ -38,7 +35,7 @@ private:
     }
 
 public:
-    _STM32_GPIO(GPIO_TypeDef *_base, uint32_t pin, IO io)
+    _GPIO(GPIO_TypeDef *_base, uint32_t pin, IO io)
     :   base(_base),
         mask(1 << pin)
     {
@@ -49,7 +46,7 @@ public:
     {
         enable_port_power(base);
 
-        // TODO : allow access to Speed setting? eg Max speed 10/2/50 MHz
+        // TODO : give access to Speed setting? eg Max speed 10/2/50 MHz
         const uint8_t mode = (io & INPUT) ? 0 : 0x3; // 0x3 = 50MHz
 
         uint8_t cfg = 0;
@@ -100,19 +97,20 @@ public:
     }
 };
 
-uint32_t _STM32_GPIO::ck_enabled = false;
+uint32_t _GPIO::ck_enabled = false;
 
-panglos::GPIO *STM32_GPIO::create(GPIO_TypeDef *_base, uint32_t _pin, IO io)
+panglos::GPIO *STM32F1_GPIO::create(GPIO_TypeDef *_base, uint32_t _pin, IO io)
 {
     if (io & INIT_ONLY)
     {
         // don't need to allocate any memory, just run the init code
-        _STM32_GPIO::init(_base, _pin, io);
+        _GPIO::init(_base, _pin, io);
         return 0;
     }
 
-    return new _STM32_GPIO(_base, _pin, io);
+    return new _GPIO(_base, _pin, io);
 }
 
 #endif  //  STM32F1
 
+//  FIN

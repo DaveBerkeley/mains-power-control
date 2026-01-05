@@ -5,7 +5,7 @@
 
 #include "stm32f1xx.h"
 
-class STM32_GPIO : public panglos::GPIO
+class STM32F1_GPIO : public panglos::GPIO
 {
 public:
     typedef enum {
