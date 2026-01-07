@@ -14,10 +14,10 @@ function xco(x) = x - _x0;
 
 pcb_dx = xco(221.5);
 pcb_dy = 107.2 - _y0;
-pcb_dz = 2;
+pcb_dz = 1.5;
 pcb_mount = 6; // height of mounting pillar
 pcb_margin_x = 1;
-pcb_margin_y = 8;
+pcb_margin_y = 6;
 
 pcb_holes = [
     [   xco(144.5), yco(103.5) ],
@@ -33,7 +33,7 @@ outlet_dz = 4;
 outlet_fixing_dx = 60.3;
 outlet_fixing_r = m3_hole_r;
 outlet_off = 0;
-outlet_mount = 10;
+outlet_mount = 8;
 
 // LEDs
 led_r = 5/2;
@@ -49,7 +49,7 @@ ui_off_y = 15;
 box_dx = 170;
 box_dy = 100;
 box_dz = 30;
-box_thick = 2;
+box_thick = 3;
 box_r = 5; // corner curve
 
 lid_dz = box_thick * 2;
@@ -187,7 +187,7 @@ module main()
                 translate([ x0, y0, box_dz-pcb_mount-box_thick ])
                 difference()
                 {
-                    cylinder(h=pcb_mount, r=m3_thread_r*3);
+                    cylinder(h=pcb_mount, r=m3_thread_r*2.5);
                     translate([ 0, 0, -0.01] )
                     cylinder(h=pcb_mount, r=m3_thread_r);
                 }
@@ -207,13 +207,13 @@ module main()
             translate([ outlet_off, outlet_off, box_dz+0.01 ] )
             outlet(15);
 
-            translate([ outlet_off + (outlet_dx/2), box_dy - 5, (box_dz/2) ])
+            translate([ outlet_off + (outlet_dx/2), box_dy - 5, (box_dz-box_thick)/2 ])
             rotate([ 90, 0, 180 ])
             iec_cutout(iec_s3, 20, m3_hole_r);
 
             x0 = box_dx - (pcb_dx/2) - pcb_margin_x;
             y0 = box_dy - (pcb_dy/2) - pcb_margin_y;
-            translate([ x0, y0, box_dz - pcb_mount - pcb_dz ])
+            translate([ x0, y0, box_dz - pcb_mount - box_thick ])
             pcb();
 
             translate([ ui_off_x, ui_off_y, box_dz-10 ] )
