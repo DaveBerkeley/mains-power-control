@@ -67,16 +67,28 @@ static void cmd_help(CLI *cli, CliCommand *)
     print_help_nest(cli, cli->head, 0);
 }
 
+    /*
+     *
+     */
+
 static void cmd_reset(CLI *, CliCommand *)
 {
     NVIC_SystemReset();
 }
+
+    /*
+     *
+     */
 
 static void cmd_show(CLI *cli, CliCommand *)
 {
     cli_print(cli, "\n\r");
     cli_print(cli, "period=%lu%s", period_us, cli->eol);
 }
+
+    /*
+     *
+     */
 
 static void cmd_phase(CLI *cli, CliCommand *)
 {
@@ -114,6 +126,10 @@ static void cmd_phase(CLI *cli, CliCommand *)
     }
 }
 
+    /*
+     *
+     */
+
 static void cmd_led(CLI *cli, CliCommand *)
 {
     int value = 0;
@@ -145,12 +161,29 @@ static void cmd_led(CLI *cli, CliCommand *)
     led->set(!value);
 }
 
+    /*
+     *
+     */
+
+static void cmd_banner(CLI *cli, CliCommand *)
+{
+    for (const char **s = banner; *s; s++)
+    {
+        cli_print(cli, "%s%s", *s, cli->eol);
+    }
+}
+
+    /*
+     *
+     */
+
 static CliCommand cli_commands[] = {
     { "reset",  cmd_reset,  "CPU Reset", 0, 0, 0 },
     { "help",   cmd_help,   "help <cmd>", 0, 0, 0 },
     { "show",   cmd_show,   "show system state", 0, 0, 0 },
     { "phase",  cmd_phase,  "set triac phase: phase <delay> [triac_pulse_width]", 0, 0, 0 },
     { "led",    cmd_led,    "set led <0|1|flash>", 0, 0, 0 },
+    { "banner", cmd_banner, "print banner", 0, 0, 0 },
     { 0, 0, 0, 0, 0, 0 },
 };
 

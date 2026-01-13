@@ -85,7 +85,7 @@ extern "C" void SysTick_Handler(void)
 
 // echo "PanglOS" | figlet | sed 's/\\/\\\\/g'
 
-static const char *banner[] = {
+const char *banner[] = {
     "",
     " ____                   _  ___  ____  ",
     "|  _ \\ __ _ _ __   __ _| |/ _ \\/ ___| ",
