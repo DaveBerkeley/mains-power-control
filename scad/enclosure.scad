@@ -56,12 +56,16 @@ lid_dz = box_thick * 2;
 
 module outlet(extra)
 {
-    a = 15;
-    b = 25;
-    c = 50;
-    d = 20;
-    e = 20;
-    t = 30;
+    // see photo of diagram 14-Jan-2026
+    a = 36;
+    b = 22;
+    c = 38;
+    d = 18;
+    e = 15;
+    f = 54;
+    g = 15;
+    rx = 4.5;
+    t = 20;
     //difference()
     {
         x_off = (outlet_dx - outlet_fixing_dx) / 2;
@@ -75,6 +79,17 @@ module outlet(extra)
             cube( [ c, a, t ] );
             translate([ (outlet_dx-d)/2, e+a, -t ])
             cube( [ d, b, t ] );
+
+            hull()
+            {
+                translate([ ((outlet_dx-f)/2) + rx, e+(a/2), -t ])
+                cylinder(h=t, r=rx);
+                translate([ ((outlet_dx+f)/2) - rx, e+(a/2), -t ])
+                cylinder(h=t, r=rx);
+
+                translate([ (outlet_dx-c)/2, e+((a-g)/2), -t ])
+                cube([ c, g, t] );
+            }
         }
 
         // mounting holes
@@ -82,8 +97,8 @@ module outlet(extra)
         {
             for (x = xs)
             {
-                translate([ x, outlet_dy/2, -extra-0.01])
-                cylinder(h=outlet_dz+extra+0.02, r=outlet_fixing_r);
+                translate([ x, outlet_dy/2, -0.01-outlet_dz])
+                cylinder(h=outlet_dz+0.01, r=outlet_fixing_r);
             }
         }
     }
@@ -198,7 +213,12 @@ module main()
                 x0 = x + ((outlet_dx - outlet_fixing_dx) / 2);
                 y0 = outlet_dy / 2;
                 translate([ x0, y0, box_dz-box_thick-outlet_mount+0.01 ])
-                cylinder(h=outlet_mount, r=m3_thread_r*3);
+                difference()
+                {
+                    cylinder(h=outlet_mount, r=m3_thread_r*3);
+                    translate( [ 0, 0, -0.01 ] )
+                    cylinder(h=outlet_mount, r=m3_thread_r);
+                }
             }
         }
 
