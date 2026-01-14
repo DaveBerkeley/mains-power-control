@@ -37,11 +37,11 @@ typedef struct {
     GPIO **gpio;
 } IoDef;
 
-static const IODEF ALT_IN  = IODEF(STM32F1_GPIO::INPUT  | STM32F1_GPIO::ALT);
-static const IODEF ALT_OUT = IODEF(STM32F1_GPIO::OUTPUT | STM32F1_GPIO::ALT);
+static const IODEF ALT_IN  = IODEF(IODEF::INPUT  | IODEF::ALT);
+static const IODEF ALT_OUT = IODEF(IODEF::OUTPUT | IODEF::ALT);
 
 static const IoDef gpios[] = {
-    {   GPIOC, 13, STM32F1_GPIO::OUTPUT, & led, }, // LED
+    {   GPIOC, 13, IODEF::OUTPUT, & led, }, // LED
     {   GPIOA, 9,  ALT_OUT, }, // UART Tx
     {   GPIOA, 10, ALT_IN,  }, // UART Rx
     {   GPIOA, 2,  ALT_OUT, }, // Comms Tx
@@ -57,7 +57,7 @@ void init_gpio(const IoDef *gpios)
     for (const IoDef *def = gpios; def->port; def++)
     {
         STM32F1_GPIO::IO io = def->io;
-        if (!def->gpio) io = IODEF(io | STM32F1_GPIO::INIT_ONLY);
+        if (!def->gpio) io = IODEF(io | IODEF::INIT_ONLY);
         GPIO *gpio = STM32F1_GPIO::create(def->port, def->pin, io);
         if (def->gpio) *def->gpio = gpio;
     }
