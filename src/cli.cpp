@@ -15,8 +15,36 @@
 
 using namespace panglos;
 
+static bool echo = true;
+
     /*
      *  CLI Commands
+     */
+
+static void cmd_echo(CLI *cli, CliCommand *)
+{
+    int idx = 0;
+
+    const char *s = cli_get_arg(cli, idx++);
+    if (!s)
+    {
+        if (echo) cli_print(cli, "expected <0|1>%s", cli->eol);
+        return;
+    }
+
+    int value = 0;
+
+    if (!cli_parse_int(s, & value, 0))
+    {
+        if (echo) cli_print(cli, "invalid echo value '%s'%s", s, cli->eol);
+        return;
+    }
+
+    echo = value;
+}
+
+    /*
+     *
      */
 
 static int match_name(CliCommand *cmd, void *arg)
@@ -96,18 +124,18 @@ static void cmd_phase(CLI *cli, CliCommand *)
     int triac = -1;
     int idx = 0;
 
-    cli_print(cli, "\n\r");
+    if (echo) cli_print(cli, "\n\r");
 
     const char *s = cli_get_arg(cli, idx++);
     if (!s)
     {
-        cli_print(cli, "expected <phase>%s", cli->eol);
+        if (echo) cli_print(cli, "expected <phase>%s", cli->eol);
         return;
     }
 
     if (!cli_parse_int(s, & value, 0))
     {
-        cli_print(cli, "invalid phase '%s'%s", s, cli->eol);
+        if (echo) cli_print(cli, "invalid phase '%s'%s", s, cli->eol);
         return;
     }
 
@@ -118,11 +146,11 @@ static void cmd_phase(CLI *cli, CliCommand *)
     }
  
     TIM3_SetPulseWidth(value);
-    cli_print(cli, "set phase to %u%s", value, cli->eol);
+    if (echo) cli_print(cli, "set phase to %u%s", value, cli->eol);
     if (triac != -1)
     {
         TIM4_SetPulseWidth(triac);
-        cli_print(cli, "set triac pulse width to %u%s", triac, cli->eol);
+        if (echo) cli_print(cli, "set triac pulse width to %u%s", triac, cli->eol);
     }
 }
 
@@ -184,6 +212,7 @@ static CliCommand cli_commands[] = {
     { "phase",  cmd_phase,  "set triac phase: phase <delay> [triac_pulse_width]", 0, 0, 0 },
     { "led",    cmd_led,    "set led <0|1|flash>", 0, 0, 0 },
     { "banner", cmd_banner, "print banner", 0, 0, 0 },
+    { "echo",   cmd_echo,   "echo 0|1", 0, 0, 0 },
     { 0, 0, 0, 0, 0, 0 },
 };
 
