@@ -43,6 +43,13 @@ sw_r = 12.5/2;
 ui_off_x = outlet_dx + 30;
 ui_off_y = 15;
 
+// LEDs
+led_r = 5.2/2;
+led_pitch = 11;
+led_h = 8 - 2.5;
+led_outer_r = 6/2;
+led_upper = 2;
+
 // box
 box_dx = 170;
 box_dy = 100;
@@ -51,6 +58,23 @@ box_thick = 3;
 box_r = 5; // corner curve
 
 lid_dz = box_thick * 2;
+
+// heatsink 
+
+hs_dx = 9.2;
+hs_dy = 9.1;
+hs_dz = 22;
+hs_hole_dz = 18.2;
+hs_r = m2_hole_r;
+hs_x0 = box_dx - pcb_dx - hs_dx + 1;
+hs_y0 = box_dy - 10;
+hs_z0 = hs_dz + 1;
+hs_extra = 6;
+hsm_dy = 4; // mount thickness
+
+    /*
+    *
+    */
 
 module outlet(extra)
 {
@@ -102,6 +126,10 @@ module outlet(extra)
     }
 }
 
+    /*
+    *
+    */
+
 module pcb()
 {
     psu_dx = 35;
@@ -124,32 +152,23 @@ module pcb()
     }
 }
 
-    led_r = 5.2/2;
-    led_pitch = 11;
-    led_h = 8;
+    /*
+    *
+    */
 
 module leds(extra)
 {
     // LEDs
-    led_outer_r = 5.8/2;
     led_pcb_to_led = 5.4 - 1.5;
     led_pcb_dy = 10.5;
     led_pcb_t = 1.5;
     dx = led_pitch * 2;
 
-    difference()
     {
-        translate( [ -dx/4, -led_pcb_dy/2, 0 ] )
-        cube( [ dx, led_pcb_dy, led_h + led_pcb_to_led - extra - 2 ] );
-
         for (x = [ 0, led_pitch ])
         {
-            translate([ x, 0, -extra ])
-            {
-                cylinder(h=led_h+extra, r=led_r);
-                translate( [ 0, 0, led_h ] )
-                cylinder(h=led_pcb_to_led, r=led_outer_r);
-            }
+            translate([ x, 0, 0 ])
+            cylinder(h=led_h + led_upper, r=led_outer_r + 2);
         }
     }
 }
@@ -158,12 +177,58 @@ module leds_cut(extra)
 {
     for (x = [ 0, led_pitch ])
     {
-        translate([ x, 0, -extra ])
+        translate([ x, 0, -extra-0.01 ])
         {
-            cylinder(h=extra, r=led_r);
+            cylinder(h=led_h+extra+led_upper, r=led_r);
+            translate([ 0, 0, led_h+extra ] )
+            cylinder(h=led_upper+0.02, r=led_outer_r);
         }
     }
 }
+
+    /*
+    *
+    */
+
+module heatsink()
+{
+    t = 1;
+    rotate( [ 0, 0, 180 ] )
+    translate([ -hs_dx/2, 0, 0 ] )
+    difference()
+    {
+        union()
+        {
+            cube([ t, hs_dy, hs_dz] );
+            translate([ hs_dx - t, 0, 0 ] )
+            cube([ t, hs_dy, hs_dz] );
+            cube([ hs_dx, t, hs_dz] );
+        }
+        translate([ hs_dx/2, -0.01, hs_hole_dz ] )
+        rotate([ 270, 0, 0 ] )
+        cylinder(h=t+0.02, r=hs_r);
+    }
+}
+
+module heatsink_mount(extra)
+{
+    t = 1;
+    translate([ -hs_dx/2, 0, 0 ] )
+    difference()
+    {
+        union()
+        {
+            cube([ hs_dx, hsm_dy, hs_dz + extra] );
+        }
+        translate([ hs_dx/2, -0.01, hs_hole_dz + extra ] )
+        rotate([ 270, 0, 0 ] )
+        cylinder(h=hsm_dy+0.02, r=hs_r);
+    }
+}
+
+    /*
+    *
+    */
 
 module _box(r, dz)
 {
@@ -214,6 +279,10 @@ module lid()
     }
 }
 
+    /*
+    *
+    */
+
 module main()
 {
     // outlet offsets
@@ -262,15 +331,20 @@ module main()
             cube( [ box_dx + rb_margin, rib_w, outlet_mount ] );
 
             // led mounts
-            translate([ ui_off_x, ui_off_y, box_dz-leds_extra+0.01 ] )
-            scale( [ 1, 1, -1 ] )
+            translate([ ui_off_x, ui_off_y, box_dz+0.01 ] )
+            rotate([ 180, 0, 0 ] )
             leds(leds_extra);
+
+            // heatsink mount
+            translate([ hs_x0, hs_y0, hs_z0 + hs_extra + 0.01 ] )
+            rotate([ 0, 180, 0 ] )
+            heatsink_mount(hs_extra);
         }
 
         #union()
         {
-            translate([ ui_off_x, ui_off_y, box_dz-leds_extra+0.01 ] )
-            scale( [ 1, 1, -1 ] )
+            translate([ ui_off_x, ui_off_y, box_dz + 0.01 ] )
+            rotate([ 180, 0, 0 ] )
             leds_cut(leds_extra);
 
             translate([ outlet_off, outlet_off, box_dz+0.01 ] )
@@ -309,6 +383,10 @@ module main()
                 }
             }
 
+            // heatsink 
+            translate([ hs_x0, hs_y0, hs_z0  ] )
+            rotate([ 0, 180, 0 ] )
+            heatsink();
         }
     }
 }
@@ -322,11 +400,11 @@ db_margin = (db_corner_r / 2) + 1;
 db_t = 2;
 db_mount = 8;
 stm32_extra = 6;
-db_dz = 12; // pcb_dz + db_mount + (db_t * 2) + psu_dz + 2;
-db_xi = 62 - db_margin; // 2 * pcb_dx / 3;
+db_dz = 12;
+db_xi = 62 - db_margin;
 db_xx = [ -db_margin, db_xi, pcb_dx + (2 * db_margin) + db_corner_r ];
 db_yy = [ -db_margin, pcb_dy + (2 * db_margin) + db_corner_r + stm32_extra ];
-db_lid_dz = 18;
+db_lid_dz = 19;
 
 module _devbox(h, r, short)
 {
@@ -481,17 +559,6 @@ module devbox_lid()
     *
     */
 
-//intersection()
-{
-// base
-//big = box_dx + 20;
-//translate( [ -big/2, -big/2, -box_dz+2 ] )
-//cube([ big, big, 2 ] );
-
-// switches / leds
-//translate([ -70, -50, -box_dz+2 ] )
-//cube([ 50, 25, 2 ] );
-
 if (1) rotate([ 0, 180, 0 ] )
 translate( [ -box_dx/2, -box_dy/2, 0 ] )
 {
@@ -500,12 +567,22 @@ translate( [ -box_dx/2, -box_dy/2, 0 ] )
     else
         lid();    
 }
-}
 
 //devbox();
 //rotate( [ 180, 0, 0 ] )
 //devbox_lid();
-
-//leds(2);
+if (0) difference()
+{
+    e = 2;
+    union()
+    {
+        dx = led_pitch * 2;
+        dy = 12;
+        translate([ -led_pitch/2, -dy/2, 0 ] )
+        cube([ dx, dy, e-0.2 ] );
+        leds(e);
+    }
+    leds_cut(e);
+}
 
 //  FIN
