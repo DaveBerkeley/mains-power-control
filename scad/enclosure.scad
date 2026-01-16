@@ -57,7 +57,7 @@ box_dz = 30;
 box_thick = 3;
 box_r = 5; // corner curve
 
-lid_dz = box_thick * 2;
+lid_dz = 10;
 
 // heatsink 
 
@@ -562,7 +562,7 @@ module devbox_lid()
 if (1) rotate([ 0, 180, 0 ] )
 translate( [ -box_dx/2, -box_dy/2, 0 ] )
 {
-    if (1)
+    if (0)
         main();
     else
         lid();    
