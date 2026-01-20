@@ -14,14 +14,15 @@ def make_link(src, dst, path):
     rel = '../' * len(r.split('/'))
     s_path = os.path.join(rel, s_dir, name)
 
+    print(s_dir, name, s_path, path, d, rel)
     #raise Exception((s_dir, name, s_path, path, d, rel))
 
-    if not os.path.exists(d_dir):
-        print('create dir', d_dir)
+    if d_dir and not os.path.exists(d_dir):
+        print(f'create dir "{d_dir}"')
         os.makedirs(d_dir)
 
     if not os.path.lexists(d):
-        print('create link', d)
+        print(f'create link "{d}"')
         os.symlink(s_path, d)
 
 #
@@ -64,6 +65,10 @@ for path in files:
 
 #for path in files:
 #    make_link('../panglos/', 'lib/gtest/src/', path)
+
+# Create links to the other shared libraries
+for lib in [ 'cli', 'printf' ]:
+    make_link('../lib/', 'lib/', lib)
 
 print("built library links ...")
 
