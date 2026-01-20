@@ -4,3 +4,6 @@
 [submodule "lib/cli"]
 	path = lib/cli
 	url = https://github.com/DaveBerkeley/cli
+[submodule "lib/panglos"]
+	path = lib/panglos
+	url = https://github.com/DaveBerkeley/panglos
