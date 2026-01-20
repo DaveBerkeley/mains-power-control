@@ -1,0 +1,5 @@
+dependencies:
+    espressif/mdns: ">=1.2.0"
+
+#    espressif/esp-protocols: ">=0.1.0"
+
