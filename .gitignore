@@ -1,6 +1,5 @@
 tags
 .pio
 stm32/lib
-esp32/CMakeLists.txt
-esp32/dependencies.lock
-esp32/lib
+stm32/CMakeLists.txt
+

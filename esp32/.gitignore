@@ -1,0 +1,7 @@
+dependencies.lock
+CMakeLists.txt
+lib
+src/banner.cpp
+src/CMakeLists.txt
+managed_components/
+*.old
