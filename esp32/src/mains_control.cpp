@@ -35,7 +35,6 @@
 #include "panglos/app/devices.h"
 #include "panglos/app/cli_server.h"
 
-//#include "targets/board.h"
 #include "mains_control.h"
 
 using namespace panglos;
@@ -279,6 +278,9 @@ public:
         {
             case M_OFF : return 0;
             case M_ON : return 99;
+            case M_NONE : // fall thru
+            case M_ECO :
+            case M_BASE :
             default : break;
         }
 

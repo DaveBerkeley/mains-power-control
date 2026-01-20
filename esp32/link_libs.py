@@ -136,6 +136,16 @@ files = [
 for path in files:
     make_link('../lib/panglos/src/', 'lib/panglos/src/', path)
 
+# CLI stub files
+
+files = [
+    'cli_mutex.h',
+    'cli_debug.h',
+]
+
+for path in files:
+    make_link('../lib/', 'lib/', path)
+
 #
 #   Put the google test simulation in its own lib
 
