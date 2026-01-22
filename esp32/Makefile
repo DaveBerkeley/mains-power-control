@@ -14,7 +14,7 @@ NAME=$(shell git config user.name)
 COPYRIGHT='" (C) ${NAME} "'
 BANNER=src/banner.cpp
 
-all: 
+all: src/lut.h 
 	echo "//    ${PROJECT} banner. Auto generated, do not edit" > ${BANNER}
 	echo "const char *banner = {" >> ${BANNER}
 	echo ${PROJECT} | sed 's/_/ /g' | figlet | sed 's/\\/\\\\/g' | awk '//{printf "    \"%s\\r\\n\"\n", $$0}' >> ${BANNER}
@@ -25,6 +25,9 @@ all:
 	date +"\"%Y\r\n\"" >> ${BANNER}
 	echo "};" >> ${BANNER}
 	PLATFORMIO_BUILD_FLAGS="-DPROJECT=${PROJECT} -D${PROJECT}" pio $(MODE) -e $(TARGET) 
+
+src/lut.h: sin2_power.py
+	./sin2_power.py > src/lut.h
 
 flash:
 	PLATFORMIO_BUILD_FLAGS="-DPROJECT=${PROJECT} -D${PROJECT}" pio $(MODE) -e $(TARGET) --target upload --verbose

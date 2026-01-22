@@ -1,7 +1,11 @@
 dependencies.lock
 CMakeLists.txt
 lib
+src/lut.h
 src/banner.cpp
 src/CMakeLists.txt
 managed_components/
 *.old
+*.o
+tdd
+.sconsign.dblite
