@@ -139,7 +139,7 @@ static bool init_devices()
             Network::start_mdns(strdup(name));
         }
     }
-    
+ 
     board_init();
     return true;
 }
@@ -177,18 +177,12 @@ static void start_app()
     }
 
     //  Initialise the MQTT subscriptions
-
     MqttClient *mqtt = (MqttClient*) Objects::objects->get("mqtt");
- 
     if (mqtt)
     {
         start_mqtt(mqtt);
         Time::sleep(3);
     }
-
-#if defined(DEV_INIT)
-    dev_init();
-#endif  //  DEV_INIT
 
     extern const char *banner;
     Objects::objects->add("banner", (void*) banner);

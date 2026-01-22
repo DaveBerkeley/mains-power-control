@@ -547,10 +547,10 @@ public:
 
 TEST(MainsControl, Solar)
 {
-    PowerControl *control = PowerControl::create(1000, -30);
+    const int load = 1500;
+    PowerControl *control = PowerControl::create(load, -30);
 
     RealData sim("test/solar3.log");
-    const int load = 1500;
     int burn = 0;
 
     int total_burn = 0;
@@ -559,13 +559,12 @@ TEST(MainsControl, Solar)
 
     while (sim.run())
     {
-        int now = sim.get_time();
-        int meter = sim.get_power();
-        int net = meter + burn;
+        const int meter = sim.get_power();
+        const int net = meter + burn;
         control->update(net);
-        int percent = control->get_percent();
+        const int percent = control->get_percent();
         burn = load * percent / 100;
-        printf("xsim %d %d %d %d %d\n", now, meter, net, percent, burn);
+        //printf("xsim %d %d %d %d %d\n", sim.get_time(), meter, net, percent, burn);
 
         total_burn += burn;
         if (meter > 0)

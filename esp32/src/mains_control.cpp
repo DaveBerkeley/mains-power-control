@@ -27,10 +27,6 @@
 
 #include "panglos/drivers/timer.h"
 
-#include "panglos/esp32/gpio.h"
-#include "panglos/esp32/rmt_strip.h"
-#include "panglos/esp32/timer.h"
-
 #include "panglos/app/event.h"
 #include "panglos/app/devices.h"
 #include "panglos/app/cli_server.h"
@@ -47,9 +43,14 @@ static VERBOSE(app, "app", false);
 
 #if defined(ESP32)
 
+#include "panglos/esp32/gpio.h"
+#include "panglos/esp32/rmt_strip.h"
+#include "panglos/esp32/timer.h"
+
 struct LedsDef {
     uint32_t pin;
     int n;
+    RmtLedStrip::Type type;
 };
 
 static bool leds_init(Device *dev, void *arg)
@@ -58,7 +59,7 @@ static bool leds_init(Device *dev, void *arg)
     ASSERT(arg);
     struct LedsDef *def= (struct LedsDef*) arg;
 
-    RmtLedStrip *leds = RmtLedStrip::create(def->n);
+    RmtLedStrip *leds = RmtLedStrip::create(def->n, 24, def->type);
     ASSERT(leds);
     const bool ok = leds->init(0, def->pin);
     leds->set_all(0x10, 0x10, 0x10);
@@ -77,7 +78,7 @@ static const GPIO_DEF scl_def = { GPIO_NUM_7, ESP_GPIO::OP, false };
 
 static const struct UART_DEF uart_def = { .chan=0, .rx=UART_RX, .tx=UART_TX, .baud=UART_BAUD, };
 
-static const struct LedsDef leds_def = { .pin=GPIO_NUM_9, .n=2 };
+static const struct LedsDef leds_def = { .pin=GPIO_NUM_9, .n=2, .type=RmtLedStrip::Type::WS2812B };
 
 static Device _board_devs[] = {
     Device("sw",   0, gpio_init, (void*) & sw_def),
@@ -116,28 +117,7 @@ void board_init()
      *
      */
 
-static const int power_lut_50Hz[100] = {
-    0,    8679, 8481, 8321, 8183,
-    8063, 7954, 7851, 7759, 7670,
-    7587, 7510, 7433, 7361, 7292,
-    7224, 7160, 7095, 7034, 6974,
-    6914, 6857, 6802, 6745, 6694,
-    6639, 6588, 6536, 6484, 6433,
-    6384, 6335, 6284, 6238, 6189,
-    6141, 6095, 6046, 6000, 5954,
-    5909, 5863, 5817, 5771, 5725,
-    5682, 5636, 5591, 5545, 5502,
-    5456, 5410, 5367, 5321, 5275,
-    5230, 5184, 5138, 5092, 5046,
-    5000, 4955, 4909, 4860, 4814,
-    4766, 4717, 4668, 4619, 4568,
-    4519, 4468, 4416, 4362, 4310,
-    4256, 4201, 4144, 4087, 4026,
-    3969, 3906, 3843, 3777, 3711,
-    3640, 3568, 3494, 3413, 3330,
-    3244, 3150, 3050, 2941, 2817,
-    2683, 2522, 2325, 2044, 1001,
-};
+#include "lut.h"
 
     /*
      *
@@ -296,7 +276,7 @@ public:
 
     static int percent_to_triac(int ph)
     {
-        return power_lut_50Hz[ph];
+        return power_lut[ph];
     }
 
     void set_power_indicator(int power)
@@ -625,19 +605,18 @@ public:
         // bias the target to a slight export. 
         // This also gives us a noise margin
         // to prevent the system switching off with slight import excursions.
-        const int error = net - target;
+        const int error = net - target; // Watts
 
-        const double ratio_up = 0.25;
-        //const double ratio_down = 0.25;
+        const double ratio_up = 0.25;  // ramp up slowly
+        const double ratio_down = 0.5; // ramp down quickly
 
-        const double available = clamp_percent(-(100 * error) / load);
-        double delta = 0;
+        const double available = -(100.0 * error) / load; // percent
+        double delta = 0; // percent
  
         if ((error > 0) && (error > abs(target)))
         {
             // importing
-            //delta = ratio_down * available;
-            delta = 0;
+            delta = ratio_down * available;
         }
         else
         {
@@ -645,16 +624,8 @@ public:
             delta = ratio_up * available;
         }
 
-        if (error > (abs(target) / 2))
-        {
-            // force downward change if we are importing
-            //if (delta > -1)
-            //    delta = -1;
-        }
-
         percent += delta;
         percent = clamp_percent(percent);
-        printf("ysim %d %d %f %f %f %f\n", net, error, available, delta, percent, percent * load / 100);
     }
 
     static double clamp_percent(double x)
