@@ -59,7 +59,10 @@ public:
 
     virtual int get_percent() = 0;
 
-    static PowerManager *create(PowerControl *pc, panglos::LedStrip *_leds, panglos::UART *_uart, panglos::GPIO *gpio, int base);
+    static PowerManager *create(PowerControl *pc, panglos::LedStrip *_leds, 
+            panglos::UART *_uart, panglos::GPIO *gpio, 
+            panglos::TemperatureSensor *temp,
+            int base);
 };
 
 //  FIN

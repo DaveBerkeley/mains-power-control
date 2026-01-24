@@ -26,6 +26,9 @@
 #include "panglos/verbose.h"
 
 #include "panglos/drivers/timer.h"
+#include "panglos/drivers/one_wire.h"
+#include "panglos/drivers/temperature.h"
+#include "panglos/drivers/ds18b20.h"
 
 #include "panglos/app/event.h"
 #include "panglos/app/devices.h"
@@ -46,6 +49,8 @@ static VERBOSE(app, "app", false);
 #include "panglos/esp32/gpio.h"
 #include "panglos/esp32/rmt_strip.h"
 #include "panglos/esp32/timer.h"
+#include "panglos/drivers/one_wire.h"
+#include "panglos/drivers/ds18b20.h"
 
 struct LedsDef {
     uint32_t pin;
@@ -70,7 +75,6 @@ static bool leds_init(Device *dev, void *arg)
 
 static const GPIO_DEF sw_def = { GPIO_NUM_8, ESP_GPIO::IP | ESP_GPIO::PU, false };
 static const GPIO_DEF sda_def = { GPIO_NUM_6, ESP_GPIO::OP, false };
-static const GPIO_DEF scl_def = { GPIO_NUM_7, ESP_GPIO::OP, false };
 
 #define UART_BAUD 115200
 #define UART_TX GPIO_NUM_5
@@ -80,12 +84,17 @@ static const struct UART_DEF uart_def = { .chan=0, .rx=UART_RX, .tx=UART_TX, .ba
 
 static const struct LedsDef leds_def = { .pin=GPIO_NUM_9, .n=2, .type=RmtLedStrip::Type::WS2812B };
 
+static struct DefOneWire ow_def = { .pin = GPIO_NUM_7 };
+
+static const char *ds18b20_needs[] = { "onewire", 0 };
+
 static Device _board_devs[] = {
     Device("sw",   0, gpio_init, (void*) & sw_def),
     Device("sda",  0, gpio_init, (void*) & sda_def),
-    Device("scl",  0, gpio_init, (void*) & scl_def),
     Device("uart", 0, uart_init, (void*) & uart_def),
     Device("leds", 0, leds_init, (void*) & leds_def),
+    Device("onewire", 0, init_onewire_bitbang, & ow_def, Device::F_CAN_FAIL),
+    Device("temperature", ds18b20_needs, init_ds18b20, (void*) "onewire", Device::F_CAN_FAIL),
     Device(0, 0, 0, 0, 0),
 };
 
@@ -137,6 +146,7 @@ class _PowerManager : public PowerManager
     LedStrip *leds;
     FmtOut stm32;
     GPIO *sw;
+    TemperatureSensor *temp_sensor;
     int ticks;
     int power; // +- import/export power from MQTT
     int pulse;
@@ -147,10 +157,10 @@ class _PowerManager : public PowerManager
     const int watchdog_period = 100 * 10; // 
     const int watchdog_reboot = 100 * 60; // 
     Time::tick_t last_mqtt;
+    int temperature;
 
     Mode mode;
     int base; // base percent
-
 
     bool simulation;
     int sim_power;
@@ -339,11 +349,12 @@ public:
     }
 
 public:
-    _PowerManager(PowerControl *_pc, LedStrip *_leds, UART *_uart, GPIO *gpio, int _base)
+    _PowerManager(PowerControl *_pc, LedStrip *_leds, UART *_uart, GPIO *gpio, TemperatureSensor *temp, int _base)
     :   pc(_pc),
         leds(_leds),
         stm32(_uart),
         sw(gpio),
+        temp_sensor(temp),
         ticks(0),
         power(0),
         pulse(100),
@@ -351,6 +362,7 @@ public:
         sw_state(false),
         percent(0),
         last_mqtt(0),
+        temperature(0),
         mode(M_NONE),
         base(_base),
         simulation(false),
@@ -442,6 +454,28 @@ public:
         }
     }
 
+    void check_temperature()
+    {
+        if (!temp_sensor) return;
+        if (!temp_sensor->ready())
+            return;
+
+        double t;
+        if (!temp_sensor->get_temp(& t))
+            return;
+        if (!temp_sensor->start_conversion())
+            return;
+
+        // TODO : control the fan to regulate the temperature
+        temperature = (int) t;
+        //PO_DEBUG("%f", t);
+    }
+
+    int get_temperature()
+    {
+        return temperature;
+    }
+
     virtual void on_idle() override
     {
         // polled in the main thread
@@ -458,6 +492,11 @@ public:
         {
             PO_DEBUG("TIMEOUT!");
             ASSERT(0);
+        }
+
+        if ((now % 100) == 0)
+        {
+            check_temperature();
         }
 
         // check for error conditions every 1/4 s
@@ -514,9 +553,11 @@ public:
      *
      */
 
-PowerManager *PowerManager::create(PowerControl *pc, LedStrip *leds, UART *uart, GPIO *gpio, int base)
+PowerManager *PowerManager::create(PowerControl *pc, LedStrip *leds, UART *uart, GPIO *gpio, 
+        TemperatureSensor *temp, 
+        int base)
 {
-    return new _PowerManager(pc, leds, uart, gpio, base);
+    return new _PowerManager(pc, leds, uart, gpio, temp, base);
 }
 
     /*
@@ -772,10 +813,11 @@ void cli_show(CLI *cli, CliCommand *cmd)
     ASSERT(cmd->ctx);
     _PowerManager *pm = (_PowerManager*) cmd->ctx;
 
-    cli_print(cli, "power=%d%s", pm->get_power(), cli->eol);
-    cli_print(cli, "percent=%d%s", pm->get_percent(), cli->eol);
+    cli_print(cli, "power=%dW%s", pm->get_power(), cli->eol);
+    cli_print(cli, "percent=%d%% %s", pm->get_percent(), cli->eol);
     cli_print(cli, "phase=%d%s", pm->get_phase(), cli->eol);
     cli_print(cli, "mode=%s%s", pm->mode_name(pm->get_mode()), cli->eol);
+    cli_print(cli, "temp=%dC%s", pm->get_temperature(), cli->eol);
 }
 
     /*
@@ -888,6 +930,8 @@ void mains_control_init(const char *topic)
     ASSERT(uart);
     GPIO *gpio = (GPIO*) Objects::objects->get("sw");
     ASSERT(gpio);
+    TemperatureSensor *temperature = (TemperatureSensor*) Objects::objects->get("temperature");
+    //ASSERT(temperature); // optional
  
     Storage db("app");
     int32_t base = 20;
@@ -899,7 +943,7 @@ void mains_control_init(const char *topic)
     PO_DEBUG("base=%d load=%d target=%d", (int) base, (int) load, (int) target);
  
     PowerControl *pc = PowerControl::create(load, target);
-    PowerManager *pm = PowerManager::create(pc, leds, uart, gpio, base);
+    PowerManager *pm = PowerManager::create(pc, leds, uart, gpio, temperature, base);
     Objects::objects->add("power_manager", pm);
 
     // Timer used to read the UI GPIO

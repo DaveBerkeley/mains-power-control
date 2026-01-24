@@ -45,6 +45,7 @@ files = [
     'event_queue.cpp',
 
     'drivers/spi.cpp',
+    'drivers/ds18b20.cpp',
 
     'esp32/hal.cpp',
     'esp32/storage.cpp',
@@ -54,6 +55,7 @@ files = [
     'esp32/uart.cpp',
     'esp32/rmt_strip.cpp',
     'esp32/timer.cpp',
+    'esp32/one_wire_bitbang.cpp',
 
     'app/cli.cpp',
     'app/event.cpp',
@@ -102,6 +104,9 @@ files = [
     'panglos/drivers/uart.h',
     'panglos/drivers/timer.h',
     'panglos/drivers/led_strip.h',
+    'panglos/drivers/one_wire.h',
+    'panglos/drivers/temperature.h',
+    'panglos/drivers/ds18b20.h',
 
     # lose these : 
     'panglos/drivers/mcp23s17.h',
