@@ -29,6 +29,8 @@
 #include "panglos/drivers/one_wire.h"
 #include "panglos/drivers/temperature.h"
 #include "panglos/drivers/ds18b20.h"
+#include "panglos/drivers/led_strip.h"
+#include "panglos/drivers/gpio.h"
 
 #include "panglos/app/event.h"
 #include "panglos/app/devices.h"
@@ -73,8 +75,8 @@ static bool leds_init(Device *dev, void *arg)
     return ok;
 }
 
-static const GPIO_DEF sw_def = { GPIO_NUM_8, ESP_GPIO::IP | ESP_GPIO::PU, false };
-static const GPIO_DEF sda_def = { GPIO_NUM_6, ESP_GPIO::OP, false };
+static const GPIO_DEF button_def = { GPIO_NUM_8, ESP_GPIO::IP | ESP_GPIO::PU, false };
+static const GPIO_DEF fan_def = { GPIO_NUM_6, ESP_GPIO::OP, false };
 
 #define UART_BAUD 115200
 #define UART_TX GPIO_NUM_5
@@ -86,15 +88,16 @@ static const struct LedsDef leds_def = { .pin=GPIO_NUM_9, .n=2, .type=RmtLedStri
 
 static struct DefOneWire ow_def = { .pin = GPIO_NUM_7 };
 
-static const char *ds18b20_needs[] = { "onewire", 0 };
+static const char *needs_onewire[] = { "onewire", 0 };
 
 static Device _board_devs[] = {
-    Device("sw",   0, gpio_init, (void*) & sw_def),
-    Device("sda",  0, gpio_init, (void*) & sda_def),
+    Device("button", 0, gpio_init, (void*) & button_def),
+    Device("fan",  0, gpio_init, (void*) & fan_def),
     Device("uart", 0, uart_init, (void*) & uart_def),
     Device("leds", 0, leds_init, (void*) & leds_def),
+    // have to use bitbang interface as the RMT one can't coexist with the LED driver
     Device("onewire", 0, init_onewire_bitbang, & ow_def, Device::F_CAN_FAIL),
-    Device("temperature", ds18b20_needs, init_ds18b20, (void*) "onewire", Device::F_CAN_FAIL),
+    Device("temperature", needs_onewire, init_ds18b20, (void*) "onewire", Device::F_CAN_FAIL),
     Device(0, 0, 0, 0, 0),
 };
 
@@ -145,7 +148,8 @@ class _PowerManager : public PowerManager
     PowerControl *pc;
     LedStrip *leds;
     FmtOut stm32;
-    GPIO *sw;
+    GPIO *button;
+    GPIO *fan;
     TemperatureSensor *temp_sensor;
     int ticks;
     int power; // +- import/export power from MQTT
@@ -158,6 +162,7 @@ class _PowerManager : public PowerManager
     const int watchdog_reboot = 100 * 60; // 
     Time::tick_t last_mqtt;
     int temperature;
+    bool fan_state;
 
     Mode mode;
     int base; // base percent
@@ -349,12 +354,13 @@ public:
     }
 
 public:
-    _PowerManager(PowerControl *_pc, LedStrip *_leds, UART *_uart, GPIO *gpio, TemperatureSensor *temp, int _base)
-    :   pc(_pc),
-        leds(_leds),
-        stm32(_uart),
-        sw(gpio),
-        temp_sensor(temp),
+    _PowerManager(const Config *config)
+    :   pc(config->pc),
+        leds(config->leds),
+        stm32(config->uart),
+        button(config->button),
+        fan(config->fan),
+        temp_sensor(config->temp),
         ticks(0),
         power(0),
         pulse(100),
@@ -363,16 +369,21 @@ public:
         percent(0),
         last_mqtt(0),
         temperature(0),
+        fan_state(false),
         mode(M_NONE),
-        base(_base),
+        base(config->base),
         simulation(false),
         sim_power(0),
         phase_sim(false),
         phase_sim_value(0),
         messages(32)
     {
-        ASSERT(leds);
-        ASSERT(_uart);
+        ASSERT(config);
+        ASSERT(config->pc);
+        ASSERT(config->leds);
+        ASSERT(config->uart);
+
+        //if (config->gp
     }
 
     virtual void on_power(int _power) override
@@ -400,7 +411,7 @@ public:
         
         // called in the esp_timer thread
         // timer tick @ 100Hz
-        bool state = sw->get();
+        bool state = button->get();
         if (state == sw_state) return;
         sw_state = state;
         if (state) return; // ignore key releases
@@ -411,7 +422,7 @@ public:
 
     void set_phase(int p)
     {
-        if (app.verbose) PO_DEBUG("phase=%d percent=%d power=%d", p, percent, power);
+        if (app.verbose) PO_DEBUG("phase=%d percent=%d power=%d t=%d", p, percent, power, temperature);
         stm32.printf("phase %d %d # %d\r\n", p, pulse, ticks);
         phase = p;
         stm32.printf("led %d\r\n", flash);
@@ -454,21 +465,41 @@ public:
         }
     }
 
+    void set_fan(bool on)
+    {
+        if (fan_state == on) return;
+        fan_state = on;
+        PO_DEBUG("fan %s t=%d", on ? "on" : "off", temperature);
+        fan->set(on);
+    }
+
+    void fan_control()
+    {
+        if (!fan) return;
+        if (temperature < 24)
+        {
+            set_fan(false);
+        }
+        if (temperature > 26)
+        {
+            set_fan(true);
+        }
+    }
+
     void check_temperature()
     {
         if (!temp_sensor) return;
-        if (!temp_sensor->ready())
-            return;
+        if (!temp_sensor->ready()) return;
 
         double t;
-        if (!temp_sensor->get_temp(& t))
-            return;
-        if (!temp_sensor->start_conversion())
-            return;
-
-        // TODO : control the fan to regulate the temperature
-        temperature = (int) t;
-        //PO_DEBUG("%f", t);
+        if (temp_sensor->get_temp(& t))
+        {
+            // TODO : control the fan to regulate the temperature
+            temperature = (int) t;
+            fan_control();
+            //PO_DEBUG("%f", t);
+        }
+        temp_sensor->start_conversion();
     }
 
     int get_temperature()
@@ -553,11 +584,10 @@ public:
      *
      */
 
-PowerManager *PowerManager::create(PowerControl *pc, LedStrip *leds, UART *uart, GPIO *gpio, 
-        TemperatureSensor *temp, 
-        int base)
+PowerManager *PowerManager::create(const PowerManager::Config *config)
 {
-    return new _PowerManager(pc, leds, uart, gpio, temp, base);
+    ASSERT(config);
+    return new _PowerManager(config);
 }
 
     /*
@@ -928,8 +958,10 @@ void mains_control_init(const char *topic)
     ASSERT(leds);
     UART *uart = (UART*) Objects::objects->get("uart");
     ASSERT(uart);
-    GPIO *gpio = (GPIO*) Objects::objects->get("sw");
-    ASSERT(gpio);
+    GPIO *button = (GPIO*) Objects::objects->get("button");
+    ASSERT(button);
+    GPIO *fan = (GPIO*) Objects::objects->get("fan");
+    //ASSERT(button);
     TemperatureSensor *temperature = (TemperatureSensor*) Objects::objects->get("temperature");
     //ASSERT(temperature); // optional
  
@@ -943,7 +975,18 @@ void mains_control_init(const char *topic)
     PO_DEBUG("base=%d load=%d target=%d", (int) base, (int) load, (int) target);
  
     PowerControl *pc = PowerControl::create(load, target);
-    PowerManager *pm = PowerManager::create(pc, leds, uart, gpio, temperature, base);
+
+    PowerManager::Config config = {
+        .pc = pc,
+        .leds = leds,
+        .uart = uart,
+        .button = button,
+        .fan = fan,
+        .temp = temperature,
+        .base = base,
+    };
+
+    PowerManager *pm = PowerManager::create(& config);
     Objects::objects->add("power_manager", pm);
 
     // Timer used to read the UI GPIO

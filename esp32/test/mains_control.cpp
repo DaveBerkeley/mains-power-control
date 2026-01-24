@@ -181,7 +181,16 @@ TEST(MainsControl, Modes)
 {
     SysSetup sys;
     PowerControl *control = PowerControl::create(1000, -30);
-    PowerManager *pm = PowerManager::create(control, & sys.leds, & sys.uart, & sys.gpio, 20);
+    const PowerManager::Config config = {
+        .pc = control,
+        .leds = & sys.leds,
+        .uart = & sys.uart,
+        .button = & sys.gpio,
+        .fan = 0,
+        .temp = 0,
+        .base = 20,
+    };
+    PowerManager *pm = PowerManager::create(& config);
     const uint8_t bright = 0x40;
 
     mc_LedStrip::LedState & state = sys.leds.state[0];
@@ -231,7 +240,16 @@ TEST(MainsControl, Keys)
 {
     SysSetup sys;
     PowerControl *control = PowerControl::create(1000, -30);
-    PowerManager *pm = PowerManager::create(control, & sys.leds, & sys.uart, & sys.gpio, 20);
+    const PowerManager::Config config = {
+        .pc = control,
+        .leds = & sys.leds,
+        .uart = & sys.uart,
+        .button = & sys.gpio,
+        .fan = 0,
+        .temp = 0,
+        .base = 20,
+    };
+    PowerManager *pm = PowerManager::create(& config);
 
     // check that the key presses cycle through the modes
 
@@ -285,7 +303,16 @@ TEST(MainsControl, Power)
 {
     SysSetup sys;
     PowerControl *control = PowerControl::create(1000, -30);
-    PowerManager *pm = PowerManager::create(control, & sys.leds, & sys.uart, & sys.gpio, 20);
+    const PowerManager::Config config = {
+        .pc = control,
+        .leds = & sys.leds,
+        .uart = & sys.uart,
+        .button = & sys.gpio,
+        .fan = 0,
+        .temp = 0,
+        .base = 20,
+    };
+    PowerManager *pm = PowerManager::create(& config);
 
     // always full on
     pm->set_mode(PowerManager::M_ON);
@@ -310,114 +337,6 @@ TEST(MainsControl, Power)
     delete pm;
     delete control;
 }
-
-#if 0
-
-struct Line
-{
-    int secs;
-    int solar;
-};
-
-static void parse_line(char *line, struct Line *info)
-{
-    // "hh:mm:ss power"
-    char *b = line;
-    char *save = 0;
-    const char *hh = strtok_r(b, ":", & save);
-    const char *mm = strtok_r(0, ":", & save);
-    const char *ss = strtok_r(0, " ", & save);
-    const char *pp = strtok_r(0, "\n", & save);
-
-    char *end = 0;
-    int secs = 0;
-    secs += (int) strtol(hh, & end, 10);
-    secs *= 60;
-    secs += (int) strtol(mm, & end, 10);
-    secs *= 60;
-    secs += (int) strtol(ss, & end, 10);
-    int solar = (int) strtol(pp, & end, 10);
-    solar *= 60; // to give Wh
-
-    info->secs = secs;
-    info->solar = solar;
-}
-
-class Kettle
-{
-    const int burn = 2200;
-    const int on = 60 * 3; // s
-    const int off = 60 * 60; // s
-    int sec;
-public:
-    Kettle() : sec(0) { }
-
-    int get()
-    {
-        sec += 1;
-        if (sec < on) return burn;
-        if (sec > off) sec = 0;
-        return 0;
-    }
-};
-
-TEST(MainsControl, Solar)
-{
-    SysSetup sys;
-    PowerManager *pm = PowerManager::create(& sys.leds, & sys.uart, & sys.gpio);
-
-    Kettle kettle;
-
-    // read the data
-    FILE *file = fopen("test/solar1.log", "r");
-    ASSERT(file);
-
-    int now = 0;
-    bool start = true;
-    const int load = 1500; // W
-    const int base_load = 80; // W
-    while (true)
-    {
-        char buff[128];
-        char *s = fgets(buff, sizeof(buff), file);
-        if (!s) break;
-        //PO_DEBUG("'%s'", s);
-        struct Line info;
-        parse_line(buff, & info);
-        //PO_DEBUG("%d %d", secs, solar);
-
-        int kettle_burn = kettle.get();
-
-        // skip until we have non-zero power
-        if (start)
-        {
-            if (info.solar == 0)
-                continue;
-            now = info.secs;
-            start = false;
-            continue;
-        }
-
-        for (long int t = now; t < info.secs; t++)
-        {
-            const int phase = pm->get_percent();
-            int burn = (load * phase) / 100;
-            int power = burn + base_load + kettle_burn;
-            power -= info.solar;
-            PO_DEBUG("burn=%d solar=%d power=%d", burn, info.solar, power);
-
-            pm->on_power(power);
-            //eq.run(Time::get());
-        }
-        now = info.secs;
-    }
-
-    fclose(file);
-
-    delete pm;
-}
-
-#endif
 
     /*
      * P_net(t) = P_base_load(t) + α(t)·P_max - P_solar(t)

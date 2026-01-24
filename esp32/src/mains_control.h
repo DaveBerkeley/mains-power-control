@@ -28,11 +28,24 @@ namespace panglos {
     class LedStrip;
     class UART;
     class GPIO;
+    class TemperatureSensor;
 }
 
 class PowerManager
 {
 public:
+    class Config
+    {
+    public:
+        PowerControl *pc;
+        panglos::LedStrip *leds;
+        panglos::UART *uart;
+        panglos::GPIO *button;
+        panglos::GPIO *fan;
+        panglos::TemperatureSensor *temp;
+        int base;
+    };
+
     virtual ~PowerManager() { }
 
     typedef enum Mode
@@ -59,10 +72,7 @@ public:
 
     virtual int get_percent() = 0;
 
-    static PowerManager *create(PowerControl *pc, panglos::LedStrip *_leds, 
-            panglos::UART *_uart, panglos::GPIO *gpio, 
-            panglos::TemperatureSensor *temp,
-            int base);
+    static PowerManager *create(const Config *config);
 };
 
 //  FIN
