@@ -10,6 +10,7 @@
 #include "panglos/drivers/gpio.h"
 #include "panglos/drivers/uart.h"
 #include "panglos/drivers/led_strip.h"
+#include "panglos/drivers/temperature.h"
 
 #include "panglos/app/event.h"
 
@@ -24,19 +25,18 @@ using namespace panglos;
 class mc_GPIO : public panglos::GPIO
 {
 public:
-    bool key;
+    bool state;
 
-    mc_GPIO() : key(true) { }
+    mc_GPIO() : state(true) { }
 
-    virtual void set(bool state) override
+    virtual void set(bool on) override
     {
+        state = on;
         PO_DEBUG("state=%d", state);
-        ASSERT(0);
     }
     virtual bool get() override
     {
-        //PO_DEBUG("key=%d", key);
-        return key;
+        return state;
     }
     virtual void toggle() override
     {
@@ -141,16 +141,40 @@ public:
     }
 };
 
-    /*
+class mc_Temp : public panglos::TemperatureSensor
+{
+public:
+    double t;
+
+    virtual bool get_temp(double *pt) override
+    {
+        if (pt) *pt = t;
+        return true;
+    }
+    virtual bool ready() override
+    {
+        return true;
+    }
+    virtual bool start_conversion() override
+    {
+        return true;
+    }
+
+    mc_Temp() : t(0) { }
+};
+
+     /*
      *  Simulate a system populated with Devices
      */
 
 class SysSetup
 {
 public:
-    mc_GPIO gpio;
+    mc_GPIO button;
+    mc_GPIO fan;
     mc_LedStrip leds;
     mc_UART uart;
+    mc_Temp temperature;
 
     SysSetup()
     {
@@ -162,7 +186,8 @@ public:
             Objects::objects = Objects::create();
         }
 
-        Objects::objects->add("sw", & gpio);
+        Objects::objects->add("button", & button);
+        Objects::objects->add("fan", & fan);
         Objects::objects->add("leds", & leds);
         Objects::objects->add("uart", & uart);
     }
@@ -185,7 +210,7 @@ TEST(MainsControl, Modes)
         .pc = control,
         .leds = & sys.leds,
         .uart = & sys.uart,
-        .button = & sys.gpio,
+        .button = & sys.button,
         .fan = 0,
         .temp = 0,
         .base = 20,
@@ -244,7 +269,7 @@ TEST(MainsControl, Keys)
         .pc = control,
         .leds = & sys.leds,
         .uart = & sys.uart,
-        .button = & sys.gpio,
+        .button = & sys.button,
         .fan = 0,
         .temp = 0,
         .base = 20,
@@ -289,7 +314,7 @@ TEST(MainsControl, Keys)
 
     for (const struct State &state : states)
     {
-        sys.gpio.key = state.key;
+        sys.button.state = state.key;
         pm->on_tick();
         pm->on_idle();
         EXPECT_EQ(pm->get_mode(), state.mode);
@@ -307,7 +332,7 @@ TEST(MainsControl, Power)
         .pc = control,
         .leds = & sys.leds,
         .uart = & sys.uart,
-        .button = & sys.gpio,
+        .button = & sys.button,
         .fan = 0,
         .temp = 0,
         .base = 20,
@@ -505,6 +530,47 @@ TEST(MainsControl, Solar)
             total_burn - excess
             );
 
+    delete control;
+}
+
+    /*
+     *
+     */
+
+TEST(MainsControl, Fan)
+{
+    SysSetup sys;
+    PowerControl *control = PowerControl::create(1000, -30);
+    const PowerManager::Config config = {
+        .pc = control,
+        .leds = & sys.leds,
+        .uart = & sys.uart,
+        .button = & sys.button,
+        .fan = & sys.fan,
+        .temp = & sys.temperature,
+        .base = 20,
+    };
+    PowerManager *pm = PowerManager::create(& config);
+
+    sys.temperature.t = 10;
+    for (int i = 1; i < 1000; i++)
+    {
+        if (i > 300) sys.temperature.t = 30;
+        if (i > 500) sys.temperature.t = 20;
+        if (i > 800) sys.temperature.t = 30;
+        Time::set(i);
+        pm->on_power(100);
+        pm->on_idle();
+        // valid on 100ms
+        if ((Time::get() % 100) != 0) continue;
+
+        if (i <= 300) { EXPECT_EQ(sys.fan.state, false); }
+        else if (i <= 500) { EXPECT_EQ(sys.fan.state, true); }
+        else if (i <= 800) { EXPECT_EQ(sys.fan.state, false); }
+        else { EXPECT_EQ(sys.fan.state, true); }
+    }
+ 
+    delete pm;
     delete control;
 }
 

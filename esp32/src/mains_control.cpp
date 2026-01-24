@@ -383,7 +383,10 @@ public:
         ASSERT(config->leds);
         ASSERT(config->uart);
 
-        //if (config->gp
+        if (fan)
+        {
+            fan->set(temp_sensor ? false : true);
+        }
     }
 
     virtual void on_power(int _power) override
