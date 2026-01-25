@@ -1,6 +1,8 @@
 
 #pragma once
 
+#include "panglos/ring_buffer.h"
+
 #include "temperature.h"
 
 void mains_control_init(const char *topic);
@@ -37,6 +39,32 @@ public:
 class PowerManager
 {
 public:
+    struct Message
+    {
+        enum Type {
+            M_MQTT,
+            M_KEY,
+            M_MODE,
+        };
+
+        enum Type type;
+        int value;
+
+        const char *text()
+        { 
+            static const LUT _lut[] = {
+                { "MQTT", M_MQTT },
+                { "KEY", M_KEY },
+                { 0 },
+            };
+            return lut(_lut, type);
+        }
+    };
+
+    typedef panglos::RingBuffer<struct Message> Messages;
+
+    Messages messages;
+
     class Config
     {
     public:
@@ -48,6 +76,7 @@ public:
         TemperatureControlConfig *temp_control;
     };
 
+    PowerManager(int n) : messages(n) { }
     virtual ~PowerManager() { }
 
     typedef enum Mode
@@ -73,7 +102,15 @@ public:
     virtual void on_idle() = 0;
 
     virtual int get_percent() = 0;
+    virtual int get_power() = 0;
+    virtual int get_phase() = 0;
+    virtual int get_temperature() = 0;
 
+    virtual void set_simulation(bool on, int power=0) = 0;
+    virtual void set_pulse(int p) = 0;
+    virtual void sim_phase(bool on, int phase) = 0;
+    virtual void forward(const char *s) = 0;
+    
     static PowerManager *create(const Config *config);
 };
 

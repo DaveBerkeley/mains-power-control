@@ -10,6 +10,7 @@ files = [
 #    'src/tick_actuator.cpp',
     'src/mains_control.cpp',
     'src/temperature.cpp',
+    'src/cli.cpp',
 
     'test/main.cpp',
     'test/mains_control.cpp',

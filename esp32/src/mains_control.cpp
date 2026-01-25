@@ -20,7 +20,6 @@
 #include "panglos/mqtt.h"
 #include "panglos/storage.h"
 #include "panglos/object.h"
-#include "panglos/ring_buffer.h"
 #include "panglos/network.h"
 #include "panglos/time.h"
 #include "panglos/verbose.h"
@@ -171,60 +170,34 @@ class _PowerManager : public PowerManager
 
 public:
 
-    int get_phase()
+    virtual int get_phase() override
     {
         return phase;
     }
 
-    int get_power()
+    virtual int get_power() override
     {
         return power;
     }
 
-    void set_simulation(bool on, int power=0)
+    virtual void set_simulation(bool on, int power=0) override
     {
         PO_DEBUG("simulation=%d power=%d", on, power);
         simulation = on;
         sim_power = power;
     }
 
-    void set_pulse(int p)
+    virtual void set_pulse(int p) override
     {
         PO_DEBUG("pulse=%d", p);
         pulse = p;
     }
 
-    void sim_phase(bool on, int phase)
+    virtual void sim_phase(bool on, int phase) override
     {
         phase_sim = on;
         phase_sim_value = phase;
     }
-
-    struct Message
-    {
-        enum Type {
-            M_MQTT,
-            M_KEY,
-            M_MODE,
-        };
-
-        enum Type type;
-        int value;
-
-        const char *text()
-        { 
-            static const LUT _lut[] = {
-                { "MQTT", M_MQTT },
-                { "KEY", M_KEY },
-                { 0 },
-            };
-            return lut(_lut, type);
-        }
-    };
-
-    typedef RingBuffer<struct Message> Messages;
-
-    Messages messages;
 
     virtual Mode get_mode() override
     {
@@ -313,7 +286,7 @@ public:
         leds->send();
     }
 
-    enum Error { M_WIFI, M_MQTT, M_TEMP };
+    enum Error { E_NONE, E_WIFI, E_MQTT, E_TEMP };
 
     void set_error_indicator(enum Error err)
     {
@@ -325,9 +298,10 @@ public:
 
         switch (err)
         {
-            case M_WIFI : { b = bright; g = bright; break; }
-            case M_MQTT : { b = bright; break; }
-            case M_TEMP : { r = bright; break; }
+            case E_WIFI : { b = bright; g = bright; break; }
+            case E_MQTT : { b = bright; break; }
+            case E_TEMP : { r = bright; break; }
+            case E_NONE : break; // fall thru
             default : return;
         }
 
@@ -354,7 +328,8 @@ public:
 
 public:
     _PowerManager(const Config *config)
-    :   pc(config->pc),
+    :   PowerManager(32),
+        pc(config->pc),
         leds(config->leds),
         stm32(config->uart),
         button(config->button),
@@ -371,8 +346,7 @@ public:
         simulation(false),
         sim_power(0),
         phase_sim(false),
-        phase_sim_value(0),
-        messages(32)
+        phase_sim_value(0)
     {
         ASSERT(config);
         ASSERT(config->pc);
@@ -440,7 +414,7 @@ public:
         }
     }
 
-    void forward(const char *s)
+    virtual void forward(const char *s) override
     {
         stm32.printf("%s", s);
     }
@@ -459,7 +433,7 @@ public:
         }
     }
 
-    int get_temperature()
+    virtual int get_temperature() override
     {
         return temp_control.get_temperature();
     }
@@ -487,6 +461,7 @@ public:
             temp_control.update();
         }
 
+        // TODO : have a defined error state
         static bool error = false;
  
         // check for error conditions every 1/4 s
@@ -496,17 +471,17 @@ public:
             
             if (temp_control.alarm())
             {
-                set_error_indicator(M_TEMP);
+                set_error_indicator(E_TEMP);
                 error = true;
             }
             else if (wifi_error())
             {
-                set_error_indicator(M_WIFI);
+                set_error_indicator(E_WIFI);
                 error = true;
             }
             else if (Time::elapsed(last_mqtt, watchdog_period))
             {
-                set_error_indicator(M_MQTT);
+                set_error_indicator(E_MQTT);
                 error = true;
             }
 
@@ -687,184 +662,10 @@ PowerControl *PowerControl::create(int load, int target)
 }
 
     /*
-     *  CLI commands
-     */
-
-void cli_keypress(CLI *, CliCommand *cmd)
-{
-    ASSERT(cmd->ctx);
-    _PowerManager *pm = (_PowerManager*) cmd->ctx;
-    struct _PowerManager::Message msg = { .type = _PowerManager::Message::M_KEY };
-    pm->messages.push(msg);
-}
-
-void cli_mode(CLI *cli, CliCommand *cmd)
-{
-    ASSERT(cmd->ctx);
-    _PowerManager *pm = (_PowerManager*) cmd->ctx;
-
-    const char *s = cli_get_arg(cli, 0);
-    if (!s)
-    {
-        cli_print(cli, "mode=%s%s", _PowerManager::mode_name(pm->get_mode()), cli->eol);
-        return;
-    }
-
-    const int code = rlut(PowerManager::mode_lut, s);
-
-    struct _PowerManager::Message msg = {
-        .type = _PowerManager::Message::M_MODE,
-        .value = code,
-    };
-    pm->messages.push(msg);
-}
-
-void cli_sim(CLI *cli, CliCommand *cmd)
-{
-    ASSERT(cmd->ctx);
-    _PowerManager *pm = (_PowerManager*) cmd->ctx;
-
-    const char *s = cli_get_arg(cli, 0);
-    if (!s)
-    {
-        cli_print(cli, "%s <off|power>%s", cmd->cmd, cli->eol);
-        return;
-    }
-
-    if (!strcmp(s, "off"))
-    {
-        cli_print(cli, "sim off%s", cli->eol);
-        pm->set_simulation(false);
-        return;
-    }
-
-    int power = 0;
-    const bool ok = cli_parse_int(s, & power, 0);
-    if (!ok)
-    {
-        cli_print(cli, "error in power '%s'%s", s, cli->eol);
-        return;
-    }
-
-    pm->set_simulation(true, power);
-}
-
-void cli_pulse(CLI *cli, CliCommand *cmd)
-{
-    ASSERT(cmd->ctx);
-    _PowerManager *pm = (_PowerManager*) cmd->ctx;
-
-    const char *s = cli_get_arg(cli, 0);
-    if (!s)
-    {
-        cli_print(cli, "%s <period>%s", cmd->cmd, cli->eol);
-        return;
-    }
-
-    int period = 0;
-    const bool ok = cli_parse_int(s, & period, 0);
-    if (!ok)
-    {
-        cli_print(cli, "error in period '%s'%s", s, cli->eol);
-        return;
-    }
-
-    pm->set_pulse(period);
-}
-
-    /*
-     *
-     */
-
-void cli_forward(CLI *cli, CliCommand *cmd)
-{
-    ASSERT(cmd->ctx);
-    _PowerManager *pm = (_PowerManager*) cmd->ctx;
-
-    const char *args[CLI_MAX_ARGS+1] = { 0 };
-
-    for (int idx = 0; idx <= CLI_MAX_ARGS; idx++)
-    {
-        const char *s = cli_get_arg(cli, idx);
-        if (!s) break;
-        args[idx] = s;
-    }
-
-    for (int idx = 0; args[idx]; idx++)
-    {
-        pm->forward(args[idx]);
-        pm->forward(" ");
-    }
-    pm->forward("\r\n");
-}
-
-    /*
-     *
-     */
-
-void cli_show(CLI *cli, CliCommand *cmd)
-{
-    ASSERT(cmd->ctx);
-    _PowerManager *pm = (_PowerManager*) cmd->ctx;
-
-    cli_print(cli, "power=%dW%s", pm->get_power(), cli->eol);
-    cli_print(cli, "percent=%d%% %s", pm->get_percent(), cli->eol);
-    cli_print(cli, "phase=%d%s", pm->get_phase(), cli->eol);
-    cli_print(cli, "mode=%s%s", pm->mode_name(pm->get_mode()), cli->eol);
-    cli_print(cli, "temp=%dC%s", pm->get_temperature(), cli->eol);
-}
-
-    /*
-     *
-     */
-
-void cli_phase(CLI *cli, CliCommand *cmd)
-{
-    ASSERT(cmd->ctx);
-    _PowerManager *pm = (_PowerManager*) cmd->ctx;
-
-    const char *s = cli_get_arg(cli, 0);
-    if (!s)
-    {
-        cli_print(cli, "%s <phase>%s", cmd->cmd, cli->eol);
-        return;
-    }
-
-    if (!strcmp("off", s))
-    {
-        pm->sim_phase(false, 0);
-        return;
-    }
-
-    int phase = 0;
-    const bool ok = cli_parse_int(s, & phase, 0);
-    if (!ok)
-    {
-        cli_print(cli, "error in phase '%s'%s", s, cli->eol);
-        return;
-    }
-
-    pm->sim_phase(true, phase);
-}
-
-    /*
-     *
-     */
-
-static CliCommand cmds[] = {
-    { "key", cli_keypress, "simulate key press", 0, 0 },
-    { "mode", cli_mode, "mode <eco|on|off|base>", 0, 0 },
-    { "sim", cli_sim, "sim <on|off|power>", 0, 0 },
-    { "pulse", cli_pulse, "pulse <period>", 0, 0 },
-    { "x", cli_forward, "forwards commands to send the stm32", 0, 0 },
-    { "show", cli_show, "show status", 0, 0 },
-    { "phase", cli_phase, "phase N|off # directly set triac phase", 0, 0 },
-    { 0 },
-};
-
-    /*
      *  Install the application specific CLI commands
      */
+
+extern CliCommand cli_cmds[];
 
 static bool mc_cli_init(void *arg, Event *, Event::Queue *)
 {
@@ -875,7 +676,7 @@ static bool mc_cli_init(void *arg, Event *, Event::Queue *)
     CLI *cli = (CLI*) Objects::objects->get("cli");
     ASSERT(cli);
 
-    for (CliCommand *cmd = cmds; cmd->cmd; cmd++)
+    for (CliCommand *cmd = cli_cmds; cmd->cmd; cmd++)
     {
         cmd->ctx = pm;
         cli_append(cli, cmd);
