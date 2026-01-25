@@ -206,14 +206,21 @@ TEST(MainsControl, Modes)
 {
     SysSetup sys;
     PowerControl *control = PowerControl::create(1000, -30);
+    TemperatureControlConfig tc_config = {
+        .fan = 0,
+        .sensor = 0,
+        .fan_on = 28,
+        .fan_off = 25,
+        .alarm = 40,
+    };
+
     const PowerManager::Config config = {
         .pc = control,
         .leds = & sys.leds,
         .uart = & sys.uart,
         .button = & sys.button,
-        .fan = 0,
-        .temp = 0,
         .base = 20,
+        .temp_control = & tc_config,
     };
     PowerManager *pm = PowerManager::create(& config);
     const uint8_t bright = 0x40;
@@ -265,14 +272,21 @@ TEST(MainsControl, Keys)
 {
     SysSetup sys;
     PowerControl *control = PowerControl::create(1000, -30);
+    TemperatureControlConfig tc_config = {
+        .fan = 0,
+        .sensor = 0,
+        .fan_on = 28,
+        .fan_off = 25,
+        .alarm = 40,
+    };
+
     const PowerManager::Config config = {
         .pc = control,
         .leds = & sys.leds,
         .uart = & sys.uart,
         .button = & sys.button,
-        .fan = 0,
-        .temp = 0,
         .base = 20,
+        .temp_control = & tc_config,
     };
     PowerManager *pm = PowerManager::create(& config);
 
@@ -328,14 +342,21 @@ TEST(MainsControl, Power)
 {
     SysSetup sys;
     PowerControl *control = PowerControl::create(1000, -30);
+    TemperatureControlConfig tc_config = {
+        .fan = 0,
+        .sensor = 0,
+        .fan_on = 28,
+        .fan_off = 25,
+        .alarm = 40,
+    };
+
     const PowerManager::Config config = {
         .pc = control,
         .leds = & sys.leds,
         .uart = & sys.uart,
         .button = & sys.button,
-        .fan = 0,
-        .temp = 0,
         .base = 20,
+        .temp_control = & tc_config,
     };
     PowerManager *pm = PowerManager::create(& config);
 
@@ -541,14 +562,21 @@ TEST(MainsControl, Fan)
 {
     SysSetup sys;
     PowerControl *control = PowerControl::create(1000, -30);
+    TemperatureControlConfig tc_config = {
+        .fan = & sys.fan,
+        .sensor = & sys.temperature,
+        .fan_on = 28,
+        .fan_off = 25,
+        .alarm = 40,
+    };
+
     const PowerManager::Config config = {
         .pc = control,
         .leds = & sys.leds,
         .uart = & sys.uart,
         .button = & sys.button,
-        .fan = & sys.fan,
-        .temp = & sys.temperature,
         .base = 20,
+        .temp_control = & tc_config,
     };
     PowerManager *pm = PowerManager::create(& config);
 

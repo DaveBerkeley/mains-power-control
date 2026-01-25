@@ -9,6 +9,7 @@ files = [
 #    'src/builders.cpp',
 #    'src/tick_actuator.cpp',
     'src/mains_control.cpp',
+    'src/temperature.cpp',
 
     'test/main.cpp',
     'test/mains_control.cpp',

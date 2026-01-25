@@ -924,10 +924,10 @@ void mains_control_init(const char *topic)
     ASSERT(uart);
     GPIO *button = (GPIO*) Objects::objects->get("button");
     ASSERT(button);
+
+    // temperature control
     GPIO *fan = (GPIO*) Objects::objects->get("fan");
-    //ASSERT(button);
     TemperatureSensor *temperature = (TemperatureSensor*) Objects::objects->get("temperature");
-    //ASSERT(temperature); // optional
  
     Storage db("app");
     int32_t base = 20;
