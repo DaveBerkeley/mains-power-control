@@ -149,8 +149,7 @@ class _PowerManager : public PowerManager
     LedStrip *leds;
     FmtOut stm32;
     GPIO *button;
-    GPIO *fan;
-    TemperatureSensor *temp_sensor;
+    TemperatureControl temp_control;
     int ticks;
     int power; // +- import/export power from MQTT
     int pulse;
@@ -161,8 +160,6 @@ class _PowerManager : public PowerManager
     const int watchdog_period = 100 * 10; // 
     const int watchdog_reboot = 100 * 60; // 
     Time::tick_t last_mqtt;
-    int temperature;
-    bool fan_state;
 
     Mode mode;
     int base; // base percent
@@ -316,23 +313,25 @@ public:
         leds->send();
     }
 
-    enum Error { M_WIFI, M_MQTT };
+    enum Error { M_WIFI, M_MQTT, M_TEMP };
 
     void set_error_indicator(enum Error err)
     {
         flash = !flash;
         const uint8_t bright = 20;
         uint8_t r = 0;
+        uint8_t g = 0;
         uint8_t b = 0;
 
         switch (err)
         {
-            case M_WIFI : { b = bright; break; }
-            case M_MQTT : { r = bright; break; }
+            case M_WIFI : { b = bright; g = bright; break; }
+            case M_MQTT : { b = bright; break; }
+            case M_TEMP : { r = bright; break; }
             default : return;
         }
 
-        leds->set(flash, 0, r, b);
+        leds->set(flash, g, r, b);
         leds->set(!flash, 0, 0, 0);
         leds->send();
     }
@@ -359,8 +358,7 @@ public:
         leds(config->leds),
         stm32(config->uart),
         button(config->button),
-        fan(config->fan),
-        temp_sensor(config->temp),
+        temp_control(config->temp_control),
         ticks(0),
         power(0),
         pulse(100),
@@ -368,8 +366,6 @@ public:
         sw_state(false),
         percent(0),
         last_mqtt(0),
-        temperature(0),
-        fan_state(false),
         mode(M_NONE),
         base(config->base),
         simulation(false),
@@ -382,11 +378,6 @@ public:
         ASSERT(config->pc);
         ASSERT(config->leds);
         ASSERT(config->uart);
-
-        if (fan)
-        {
-            fan->set(temp_sensor ? false : true);
-        }
     }
 
     virtual void on_power(int _power) override
@@ -425,7 +416,7 @@ public:
 
     void set_phase(int p)
     {
-        if (app.verbose) PO_DEBUG("phase=%d percent=%d power=%d t=%d", p, percent, power, temperature);
+        if (app.verbose) PO_DEBUG("phase=%d percent=%d power=%d t=%d", p, percent, power, get_temperature());
         stm32.printf("phase %d %d # %d\r\n", p, pulse, ticks);
         phase = p;
         stm32.printf("led %d\r\n", flash);
@@ -468,46 +459,9 @@ public:
         }
     }
 
-    void set_fan(bool on)
-    {
-        if (fan_state == on) return;
-        fan_state = on;
-        PO_DEBUG("fan %s t=%d", on ? "on" : "off", temperature);
-        fan->set(on);
-    }
-
-    void fan_control()
-    {
-        if (!fan) return;
-        if (temperature < 24)
-        {
-            set_fan(false);
-        }
-        if (temperature > 26)
-        {
-            set_fan(true);
-        }
-    }
-
-    void check_temperature()
-    {
-        if (!temp_sensor) return;
-        if (!temp_sensor->ready()) return;
-
-        double t;
-        if (temp_sensor->get_temp(& t))
-        {
-            // TODO : control the fan to regulate the temperature
-            temperature = (int) t;
-            fan_control();
-            //PO_DEBUG("%f", t);
-        }
-        temp_sensor->start_conversion();
-    }
-
     int get_temperature()
     {
-        return temperature;
+        return temp_control.get_temperature();
     }
 
     virtual void on_idle() override
@@ -530,15 +484,22 @@ public:
 
         if ((now % 100) == 0)
         {
-            check_temperature();
+            temp_control.update();
         }
 
+        static bool error = false;
+ 
         // check for error conditions every 1/4 s
         if ((now % 25) == 0)
         {
-            bool error = false;
+            error = false;
             
-            if (wifi_error())
+            if (temp_control.alarm())
+            {
+                set_error_indicator(M_TEMP);
+                error = true;
+            }
+            else if (wifi_error())
             {
                 set_error_indicator(M_WIFI);
                 error = true;
@@ -552,7 +513,7 @@ public:
             if (error && ((now % 100) == 0))
             {
                 // tell the system we have zero power available as mqtt not working
-                handle_power(0, false);
+                handle_power(10000, false);
             }
         }
 
@@ -570,7 +531,7 @@ public:
             case Message::M_MQTT :
             {
                 last_mqtt = Time::get();
-                handle_power(msg.value);
+                if (!error) handle_power(msg.value);
                 break;
             }
             case Message::M_MODE :
@@ -972,21 +933,34 @@ void mains_control_init(const char *topic)
     int32_t base = 20;
     int32_t load = 1000;
     int32_t target = -40;
+    int32_t fan_on = 26;
+    int32_t fan_off = 25;
+    int32_t alarm = 40;
     db.get("base", & base);
     db.get("load", & load);
     db.get("target", & target);
+    db.get("fan_on", & target);
+    db.get("fan_off", & target);
+    db.get("alarm", & target);
     PO_DEBUG("base=%d load=%d target=%d", (int) base, (int) load, (int) target);
  
     PowerControl *pc = PowerControl::create(load, target);
+
+    TemperatureControlConfig tc_config = {
+        .fan = fan,
+        .sensor = temperature,
+        .fan_on = fan_on,
+        .fan_off = fan_off,
+        .alarm = alarm,
+    };
 
     PowerManager::Config config = {
         .pc = pc,
         .leds = leds,
         .uart = uart,
         .button = button,
-        .fan = fan,
-        .temp = temperature,
         .base = base,
+        .temp_control = & tc_config,
     };
 
     PowerManager *pm = PowerManager::create(& config);

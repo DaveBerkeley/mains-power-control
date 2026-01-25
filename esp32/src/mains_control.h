@@ -1,7 +1,19 @@
 
 #pragma once
 
-#include "panglos/app/event.h"
+#include "temperature.h"
+
+void mains_control_init(const char *topic);
+
+    /*
+     *
+     */
+
+namespace panglos {
+    class LedStrip;
+    class UART;
+    class GPIO;
+}
 
     /*
      *
@@ -22,15 +34,6 @@ public:
      *
      */
 
-void mains_control_init(const char *topic);
-
-namespace panglos {
-    class LedStrip;
-    class UART;
-    class GPIO;
-    class TemperatureSensor;
-}
-
 class PowerManager
 {
 public:
@@ -41,9 +44,8 @@ public:
         panglos::LedStrip *leds;
         panglos::UART *uart;
         panglos::GPIO *button;
-        panglos::GPIO *fan;
-        panglos::TemperatureSensor *temp;
         int base;
+        TemperatureControlConfig *temp_control;
     };
 
     virtual ~PowerManager() { }
