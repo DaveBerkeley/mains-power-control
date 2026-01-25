@@ -29,6 +29,7 @@ struct TemperatureControlConfig
 
 class TemperatureControl
 {
+public:
     TemperatureControlConfig config;
     int temperature;
     bool fan_state;
@@ -37,7 +38,6 @@ class TemperatureControl
     void set_fan(bool on);
     void fan_control();
 
-public:
     TemperatureControl(TemperatureControlConfig *c);
 
     void update();

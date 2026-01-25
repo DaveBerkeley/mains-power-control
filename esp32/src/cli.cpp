@@ -139,33 +139,67 @@ void cli_show(CLI *cli, CliCommand *cmd)
      *
      */
 
-void cli_phase(CLI *cli, CliCommand *cmd)
+enum Control { C_PHASE, C_TEMP };
+
+static void cli_set(CLI *cli, PowerManager *pm, enum Control c)
 {
-    ASSERT(cmd->ctx);
-    PowerManager *pm = (PowerManager*) cmd->ctx;
+    const char *name = 0;
+
+    switch (c)
+    {
+        case C_PHASE : name = "phase"; break;
+        case C_TEMP : name = "temp"; break;
+        default : ASSERT(0);
+    }
 
     const char *s = cli_get_arg(cli, 0);
     if (!s)
     {
-        cli_print(cli, "%s <phase>%s", cmd->cmd, cli->eol);
+        cli_print(cli, "%s <%s>%s", name, name, cli->eol);
         return;
     }
+
+    bool on = true;
+    int var = 0;
 
     if (!strcmp("off", s))
     {
-        pm->sim_phase(false, 0);
-        return;
+        on = false;
     }
-
-    int phase = 0;
-    const bool ok = cli_parse_int(s, & phase, 0);
-    if (!ok)
+    else
     {
-        cli_print(cli, "error in phase '%s'%s", s, cli->eol);
-        return;
+        const bool ok = cli_parse_int(s, & var, 0);
+        if (!ok)
+        {
+            cli_print(cli, "error in %s '%s'%s", name, s, cli->eol);
+            return;
+        }
     }
 
-    pm->sim_phase(true, phase);
+    switch (c)
+    {
+        case C_PHASE : pm->sim_phase(on, var); break;
+        case C_TEMP  : pm->sim_temperature(on, var); break;
+        default      : ASSERT(0);
+    }        
+}
+
+    /*
+     *
+     */
+
+void cli_phase(CLI *cli, CliCommand *cmd)
+{
+    ASSERT(cmd->ctx);
+    PowerManager *pm = (PowerManager*) cmd->ctx;
+    return cli_set(cli, pm, C_PHASE);
+}
+
+void cli_temp(CLI *cli, CliCommand *cmd)
+{
+    ASSERT(cmd->ctx);
+    PowerManager *pm = (PowerManager*) cmd->ctx;
+    return cli_set(cli, pm, C_TEMP);
 }
 
     /*
@@ -180,6 +214,7 @@ CliCommand cli_cmds[] = {
     { "x", cli_forward, "forwards commands to send the stm32", 0, 0 },
     { "show", cli_show, "show status", 0, 0 },
     { "phase", cli_phase, "phase N|off # directly set triac phase", 0, 0 },
+    { "temp", cli_temp, "temp N|off # simulate temperature", 0, 0 },
     { 0 },
 };
 

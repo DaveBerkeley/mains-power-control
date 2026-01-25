@@ -142,6 +142,59 @@ const LUT PowerManager::mode_lut[] = {
     { 0 },
 };
 
+    /*
+     *
+     */
+
+class SimTemp : public TemperatureSensor
+{
+    TemperatureSensor *proxy;
+    int temp;
+    bool sim;
+
+    virtual bool get_temp(double *t) override
+    {
+        if (sim)
+        {
+            if (t) *t = temp;
+            return true;
+        }
+        ASSERT(proxy);
+        return proxy->get_temp(t);
+    }
+    virtual bool start_conversion() override
+    {
+        if (sim) return true;
+        ASSERT(proxy);
+        return proxy->start_conversion();
+    }
+    virtual bool ready() override
+    {
+        if (sim) return true;
+        ASSERT(proxy);
+        return proxy->ready();
+    }
+
+public:
+    SimTemp() : proxy(0), sim(false) { }
+
+    void set(TemperatureSensor *p)
+    {
+        proxy = p;
+    }
+
+    void set_sim(bool on, int t)
+    {
+        PO_DEBUG("on=%d t=%d", on, t);
+        sim = on;
+        temp = t;
+    }
+};
+
+    /*
+     *
+     */
+
 class _PowerManager : public PowerManager
 {
     PowerControl *pc;
@@ -168,6 +221,11 @@ class _PowerManager : public PowerManager
     int phase_sim;
     int phase_sim_value;
 
+    enum Error { E_NONE, E_WIFI, E_MQTT, E_TEMP };
+
+    enum Error error_state;
+
+    SimTemp sim_temp;
 public:
 
     virtual int get_phase() override
@@ -197,6 +255,11 @@ public:
     {
         phase_sim = on;
         phase_sim_value = phase;
+    }
+
+    virtual void sim_temperature(bool on, int t) override
+    {
+        sim_temp.set_sim(on, t);
     }
 
     virtual Mode get_mode() override
@@ -233,12 +296,20 @@ public:
         }
 
         mode = m;
-        leds->set(0, g, r, b);
-        leds->send();
+
+        if (error_state == E_NONE)
+        {
+            leds->set(0, g, r, b);
+            leds->send();
+        }
     }
 
     int calc_percent()
     {
+        // always turn the power off in error states
+        if (error_state != E_NONE)
+            return 0;
+
         switch (mode)
         {
             case M_OFF : return 0;
@@ -285,8 +356,6 @@ public:
         leds->set(1, g, r, b);
         leds->send();
     }
-
-    enum Error { E_NONE, E_WIFI, E_MQTT, E_TEMP };
 
     void set_error_indicator(enum Error err)
     {
@@ -346,12 +415,16 @@ public:
         simulation(false),
         sim_power(0),
         phase_sim(false),
-        phase_sim_value(0)
+        phase_sim_value(0),
+        error_state(E_NONE)
     {
         ASSERT(config);
         ASSERT(config->pc);
         ASSERT(config->leds);
         ASSERT(config->uart);
+
+        sim_temp.set(config->temp_control->sensor);
+        temp_control.config.sensor = & sim_temp;
     }
 
     virtual void on_power(int _power) override
@@ -438,6 +511,17 @@ public:
         return temp_control.get_temperature();
     }
 
+    enum Error check_error()
+    {
+        if (temp_control.alarm())
+            return E_TEMP;
+        if (wifi_error())
+            return E_WIFI;
+        if (Time::elapsed(last_mqtt, watchdog_period))
+            return E_MQTT;
+        return E_NONE;
+    }
+    
     virtual void on_idle() override
     {
         // polled in the main thread
@@ -461,34 +545,22 @@ public:
             temp_control.update();
         }
 
-        // TODO : have a defined error state
-        static bool error = false;
- 
         // check for error conditions every 1/4 s
         if ((now % 25) == 0)
         {
-            error = false;
-            
-            if (temp_control.alarm())
+            enum Error error = check_error();
+
+            if (error != error_state)
             {
-                set_error_indicator(E_TEMP);
-                error = true;
-            }
-            else if (wifi_error())
-            {
-                set_error_indicator(E_WIFI);
-                error = true;
-            }
-            else if (Time::elapsed(last_mqtt, watchdog_period))
-            {
-                set_error_indicator(E_MQTT);
-                error = true;
+                // change in error state
+                error_state = error;
+                // restore LED state
+                set_mode(mode);
             }
 
-            if (error && ((now % 100) == 0))
+            if (error != E_NONE)
             {
-                // tell the system we have zero power available as mqtt not working
-                handle_power(10000, false);
+                set_error_indicator(error);
             }
         }
 
@@ -506,7 +578,7 @@ public:
             case Message::M_MQTT :
             {
                 last_mqtt = Time::get();
-                if (!error) handle_power(msg.value);
+                handle_power(msg.value);
                 break;
             }
             case Message::M_MODE :
