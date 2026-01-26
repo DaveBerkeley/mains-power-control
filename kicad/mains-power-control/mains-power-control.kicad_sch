@@ -5517,7 +5517,7 @@
 	)
 	(global_label "Lamp"
 		(shape input)
-		(at 171.45 66.04 0)
+		(at 171.45 68.58 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -5527,7 +5527,7 @@
 		)
 		(uuid "37237c9d-e7f0-4be1-ad70-926569d7cc31")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 179.4546 66.04 0)
+			(at 179.4546 68.58 0)
 			(effects
 				(font
 					(size 1.27 1.27)
@@ -6507,7 +6507,7 @@
 	)
 	(global_label "0V"
 		(shape input)
-		(at 171.45 68.58 0)
+		(at 171.45 66.04 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -6517,7 +6517,7 @@
 		)
 		(uuid "fbafdc6e-ceb9-402e-8541-0359569fcf12")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 176.7333 68.58 0)
+			(at 176.7333 66.04 0)
 			(effects
 				(font
 					(size 1.27 1.27)
