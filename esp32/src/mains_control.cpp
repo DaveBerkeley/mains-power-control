@@ -1,5 +1,4 @@
 
-
 #if defined(MAINS_POWER_CONTROL)
 
 #include <stdint.h>
@@ -337,6 +336,8 @@ public:
 
     void set_power_indicator(int power)
     {
+        if (error_state != E_NONE) return;
+
         uint8_t r = 0;
         uint8_t g = 0;
         uint8_t b = 0;
@@ -370,8 +371,8 @@ public:
             case E_WIFI : { b = bright; g = bright; break; }
             case E_MQTT : { b = bright; break; }
             case E_TEMP : { r = bright; break; }
-            case E_NONE : break; // fall thru
-            default : return;
+            case E_NONE : return;
+            default : ASSERT(0);
         }
 
         leds->set(flash, g, r, b);
@@ -422,9 +423,10 @@ public:
         ASSERT(config->pc);
         ASSERT(config->leds);
         ASSERT(config->uart);
+        ASSERT(config->temp_control);
 
         sim_temp.set(config->temp_control->sensor);
-        temp_control.config.sensor = & sim_temp;
+        temp_control.set_sensor(& sim_temp);
     }
 
     virtual void on_power(int _power) override
@@ -508,7 +510,9 @@ public:
 
     virtual int get_temperature() override
     {
-        return temp_control.get_temperature();
+        int t = 0;
+        temp_control.get_temperature(& t);
+        return t;
     }
 
     enum Error check_error()
@@ -521,7 +525,25 @@ public:
             return E_MQTT;
         return E_NONE;
     }
-    
+
+    virtual const char *get_error_mode() override
+    {
+        static const LUT error_mode_lut[] = {
+            {   "E_TEMP", E_TEMP, },
+            {   "E_WIFI", E_WIFI, },
+            {   "E_MQTT", E_MQTT, },
+            {   "E_NONE", E_NONE, },
+            {   0 },
+        };
+        return lut(error_mode_lut, error_state);
+    }
+
+    void set_error(enum Error error)
+    {
+        error_state = error;
+        PO_DEBUG("error=%s", get_error_mode());
+    }
+
     virtual void on_idle() override
     {
         // polled in the main thread
@@ -553,7 +575,7 @@ public:
             if (error != error_state)
             {
                 // change in error state
-                error_state = error;
+                set_error(error);
                 // restore LED state
                 set_mode(mode);
             }
@@ -848,7 +870,7 @@ void mains_control_init(const char *topic)
 
     init_mqtt(topic, pm);
 
-    // IDLE events as are used as the main loop
+    // IDLE events are used as the main loop
     EventHandler::add_handler(Event::IDLE, on_idle, pm);
 
     // add new cli commands once the CLI is running

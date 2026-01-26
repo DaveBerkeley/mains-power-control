@@ -29,20 +29,23 @@ struct TemperatureControlConfig
 
 class TemperatureControl
 {
-public:
     TemperatureControlConfig config;
     int temperature;
     bool fan_state;
+    bool valid;
 
     void check_temperature();
     void set_fan(bool on);
     void fan_control();
+public:
 
     TemperatureControl(TemperatureControlConfig *c);
 
     void update();
     bool alarm();
-    int get_temperature();
+    bool get_temperature(int *t);
+
+    void set_sensor(panglos::TemperatureSensor *);
 };
 
 //  FIN

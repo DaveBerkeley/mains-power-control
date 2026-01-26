@@ -40,36 +40,6 @@ void cli_mode(CLI *cli, CliCommand *cmd)
     pm->messages.push(msg);
 }
 
-void cli_sim(CLI *cli, CliCommand *cmd)
-{
-    ASSERT(cmd->ctx);
-    PowerManager *pm = (PowerManager*) cmd->ctx;
-
-    const char *s = cli_get_arg(cli, 0);
-    if (!s)
-    {
-        cli_print(cli, "%s <off|power>%s", cmd->cmd, cli->eol);
-        return;
-    }
-
-    if (!strcmp(s, "off"))
-    {
-        cli_print(cli, "sim off%s", cli->eol);
-        pm->set_simulation(false);
-        return;
-    }
-
-    int power = 0;
-    const bool ok = cli_parse_int(s, & power, 0);
-    if (!ok)
-    {
-        cli_print(cli, "error in power '%s'%s", s, cli->eol);
-        return;
-    }
-
-    pm->set_simulation(true, power);
-}
-
 void cli_pulse(CLI *cli, CliCommand *cmd)
 {
     ASSERT(cmd->ctx);
@@ -133,24 +103,28 @@ void cli_show(CLI *cli, CliCommand *cmd)
     cli_print(cli, "phase=%d%s", pm->get_phase(), cli->eol);
     cli_print(cli, "mode=%s%s", pm->mode_name(pm->get_mode()), cli->eol);
     cli_print(cli, "temp=%dC%s", pm->get_temperature(), cli->eol);
+    cli_print(cli, "error=%s%s", pm->get_error_mode(), cli->eol);
 }
 
     /*
-     *
+     *  General "command off|value" handling
      */
 
-enum Control { C_PHASE, C_TEMP };
+enum Control { C_PHASE, C_TEMP, C_POWER };
 
-static void cli_set(CLI *cli, PowerManager *pm, enum Control c)
+static void cli_set(CLI *cli, CliCommand *cmd, enum Control c)
 {
-    const char *name = 0;
+    ASSERT(cmd);
+    PowerManager *pm = (PowerManager*) cmd->ctx;
+    ASSERT(pm);
 
-    switch (c)
-    {
-        case C_PHASE : name = "phase"; break;
-        case C_TEMP : name = "temp"; break;
-        default : ASSERT(0);
-    }
+    static const LUT _lut[] = {
+        { "phase", C_PHASE, },
+        { "temp", C_TEMP, },
+        { "power", C_POWER, },
+        { 0 },
+    };
+    const char *name = lut(_lut, c);
 
     const char *s = cli_get_arg(cli, 0);
     if (!s)
@@ -178,8 +152,9 @@ static void cli_set(CLI *cli, PowerManager *pm, enum Control c)
 
     switch (c)
     {
-        case C_PHASE : pm->sim_phase(on, var); break;
-        case C_TEMP  : pm->sim_temperature(on, var); break;
+        case C_PHASE : pm->sim_phase(on, var);          break;
+        case C_TEMP  : pm->sim_temperature(on, var);    break;
+        case C_POWER : pm->set_simulation(on, var);     break;
         default      : ASSERT(0);
     }        
 }
@@ -188,18 +163,19 @@ static void cli_set(CLI *cli, PowerManager *pm, enum Control c)
      *
      */
 
+void cli_power(CLI *cli, CliCommand *cmd)
+{
+    return cli_set(cli, cmd, C_POWER);
+}
+
 void cli_phase(CLI *cli, CliCommand *cmd)
 {
-    ASSERT(cmd->ctx);
-    PowerManager *pm = (PowerManager*) cmd->ctx;
-    return cli_set(cli, pm, C_PHASE);
+    return cli_set(cli, cmd, C_PHASE);
 }
 
 void cli_temp(CLI *cli, CliCommand *cmd)
 {
-    ASSERT(cmd->ctx);
-    PowerManager *pm = (PowerManager*) cmd->ctx;
-    return cli_set(cli, pm, C_TEMP);
+    return cli_set(cli, cmd, C_TEMP);
 }
 
     /*
@@ -209,10 +185,10 @@ void cli_temp(CLI *cli, CliCommand *cmd)
 CliCommand cli_cmds[] = {
     { "key", cli_keypress, "simulate key press", 0, 0 },
     { "mode", cli_mode, "mode <eco|on|off|base>", 0, 0 },
-    { "sim", cli_sim, "sim <on|off|power>", 0, 0 },
     { "pulse", cli_pulse, "pulse <period>", 0, 0 },
     { "x", cli_forward, "forwards commands to send the stm32", 0, 0 },
     { "show", cli_show, "show status", 0, 0 },
+    { "power", cli_power, "power N|off # simulate power value", 0, 0 },
     { "phase", cli_phase, "phase N|off # directly set triac phase", 0, 0 },
     { "temp", cli_temp, "temp N|off # simulate temperature", 0, 0 },
     { 0 },

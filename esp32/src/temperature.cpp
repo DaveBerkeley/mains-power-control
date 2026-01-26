@@ -8,8 +8,9 @@
 
 TemperatureControl::TemperatureControl(TemperatureControlConfig *c)
 :   config(*c),
-    temperature(85),
-    fan_state(false)
+    temperature(0),
+    fan_state(false),
+    valid(false)
 {
     if (config.fan)
     {
@@ -27,10 +28,9 @@ void TemperatureControl::check_temperature()
     double t;
     if (sensor->get_temp(& t))
     {
-        // TODO : control the fan to regulate the temperature
+        valid = true;
         temperature = (int) t;
         fan_control();
-        //PO_DEBUG("%f", t);
     }
     sensor->start_conversion();
 }
@@ -66,9 +66,16 @@ bool TemperatureControl::alarm()
     return temperature >= config.alarm;
 }
 
-int TemperatureControl::get_temperature()
+bool TemperatureControl::get_temperature(int *t)
 {
-    return temperature;
+    if (!valid) return false;
+    if (t) *t = temperature;
+    return true;
+}
+
+void TemperatureControl::set_sensor(panglos::TemperatureSensor *s)
+{
+    config.sensor = s;
 }
 
 //  FIN

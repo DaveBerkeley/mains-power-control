@@ -48,7 +48,9 @@ TEST(Temperature, Update)
     {
         sys.temperature.t = t;
         tc.update();
-        EXPECT_EQ(tc.get_temperature(), t);
+        int temp = 0;
+        tc.get_temperature(& temp);
+        EXPECT_EQ(temp, t);
     }
 }
 

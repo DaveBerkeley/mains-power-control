@@ -105,6 +105,7 @@ public:
     virtual int get_power() = 0;
     virtual int get_phase() = 0;
     virtual int get_temperature() = 0;
+    virtual const char *get_error_mode() = 0;
 
     virtual void set_simulation(bool on, int power=0) = 0;
     virtual void set_pulse(int p) = 0;
