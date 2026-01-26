@@ -67,7 +67,7 @@ static bool leds_init(Device *dev, void *arg)
     RmtLedStrip *leds = RmtLedStrip::create(def->n, 24, def->type);
     ASSERT(leds);
     const bool ok = leds->init(0, def->pin);
-    leds->set_all(0x10, 0x10, 0x10);
+    leds->set_all(0, 0, 0);
     leds->send();
     dev->add(Objects::objects, leds);
     return ok;
@@ -75,6 +75,7 @@ static bool leds_init(Device *dev, void *arg)
 
 static const GPIO_DEF button_def = { GPIO_NUM_8, ESP_GPIO::IP | ESP_GPIO::PU, false };
 static const GPIO_DEF fan_def = { GPIO_NUM_6, ESP_GPIO::OP, false };
+static const GPIO_DEF lamp_def = { GPIO_NUM_10, ESP_GPIO::OP | ESP_GPIO::OD, false };
 
 #define UART_BAUD 115200
 #define UART_TX GPIO_NUM_5
@@ -96,6 +97,7 @@ static Device _board_devs[] = {
     // have to use bitbang interface as the RMT one can't coexist with the LED driver
     Device("onewire", 0, init_onewire_bitbang, & ow_def, Device::F_CAN_FAIL),
     Device("temperature", needs_onewire, init_ds18b20, (void*) "onewire", Device::F_CAN_FAIL),
+    Device("lamp", 0, gpio_init, (void*) & lamp_def),
     Device(0, 0, 0, 0, 0),
 };
 
@@ -526,6 +528,11 @@ public:
         return E_NONE;
     }
 
+   bool network_error()
+    {
+        return wifi_error() || Time::elapsed(last_mqtt, watchdog_period);
+    }
+
     virtual const char *get_error_mode() override
     {
         static const LUT error_mode_lut[] = {
@@ -565,6 +572,12 @@ public:
         if ((now % 100) == 0)
         {
             temp_control.update();
+            
+            if (network_error())
+            {
+                // we won't be getting any MQTT messages, so fake them
+                handle_power(0);
+            }
         }
 
         // check for error conditions every 1/4 s

@@ -152,9 +152,9 @@ static void cli_set(CLI *cli, CliCommand *cmd, enum Control c)
 
     switch (c)
     {
-        case C_PHASE : pm->sim_phase(on, var);          break;
-        case C_TEMP  : pm->sim_temperature(on, var);    break;
-        case C_POWER : pm->set_simulation(on, var);     break;
+        case C_PHASE : pm->sim_phase(on, var);       break;
+        case C_TEMP  : pm->sim_temperature(on, var); break;
+        case C_POWER : pm->set_simulation(on, var);  break;
         default      : ASSERT(0);
     }        
 }

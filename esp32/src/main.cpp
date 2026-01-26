@@ -35,6 +35,7 @@
 #include "panglos/verbose.h"
 #include "panglos/watchdog.h"
 #include "panglos/network.h"
+#include "panglos/drivers/led_strip.h"
 
 #include "panglos/arch.h"
 #include "panglos/hal.h"
@@ -92,6 +93,13 @@ class StdOut : public Out
      *
      */
 
+static void set_leds(LedStrip *leds, uint8_t r, uint8_t g, uint8_t b)
+{
+    if (!leds) return;
+    leds->set_all(g, r, b);
+    leds->send();
+}
+
 static bool init_devices()
 {
     ASSERT(Objects::objects);
@@ -100,19 +108,8 @@ static bool init_devices()
 
     bool verbose = true;
 
-    //  First initialise the network (if any)
-
-    void start_network(); // TODO : this should be in a header file
-    start_network();
-
-    if (Objects::objects->get("net"))
+    //  Initialise any board specific devices
     {
-        MqttClient *mqtt = new MqttClient;
-        Objects::objects->add("mqtt", mqtt);
-    }
-
-    {
-        //  Initialise any board specific devices
         panglos::List<Device*> devices(Device::get_next);
 
         for (Device *d = board_devs; d->name; d++)
@@ -127,9 +124,20 @@ static bool init_devices()
         }
     }
 
-    // Start mDNS?
+    LedStrip *leds = (LedStrip*) Objects::objects->get("leds");
+    set_leds(leds, 0x20, 0x20, 0x20);
+
+    //  Initialise the network 
+    void start_network(); // TODO : this should be in a header file
+    start_network();
+
     if (Objects::objects->get("net"))
     {
+        // Start MQTT
+        MqttClient *mqtt = new MqttClient;
+        Objects::objects->add("mqtt", mqtt);
+
+        // Start mDNS?
         Storage db("net");
 
         char name[64];
@@ -138,6 +146,11 @@ static bool init_devices()
         {
             Network::start_mdns(strdup(name));
         }
+        set_leds(leds, 0x20, 0x20, 0);
+    }
+    else
+    {
+        set_leds(leds, 0, 0, 0);
     }
  
     board_init();
