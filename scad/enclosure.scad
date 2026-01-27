@@ -37,6 +37,9 @@ outlet_fixing_r = m3_hole_r;
 outlet_off = 0;
 outlet_mount = pcb_mount - 2;
 
+// IEC mains inlet
+iec_style = iec_s3;
+
 // switch
 sw_r = 12.5/2;
 
@@ -59,6 +62,7 @@ fan_r = m2_hole_r;
 fan_in_r = 10/2;
 fan_out_r = 18/2;
 fan_t = 20;
+fan_blade_start = 15; // degrees
 fan_blade_step = 30; // degrees
 fan_blade_opening = 24; // degrees
 
@@ -73,20 +77,29 @@ lid_dz = 10;
 
 // heatsink 
 
-hs_dx = 9.2;
-hs_dy = 9.1;
-hs_dz = 22;
-hs_hole_dz = 18.2;
+hs_dx = 25;
+hs_dy = 16;
+hs_dz = 23;
+hs_hole_dz = 22;
 hs_r = m2_hole_r;
-hs_x0 = box_dx - pcb_dx - hs_dx + 1;
-hs_y0 = box_dy - 10;
-hs_z0 = hs_dz + 1;
+hs_x0 = hs_dx + fan_dz; // box_dx - pcb_dx - hs_dx + 1;
+hs_y0 = box_dy - 36;
+hs_z0 = hs_dz + 6;
 hs_extra = 6;
+hs_rot = [ 90, 180, 270 ];
+
+// heatsink mount
+hsm_dx = 15;
 hsm_dy = 4; // mount thickness
+hsm_dz = 26;
+hsm_x0 = hs_x0 - (hs_dx/2);
+hsm_y0 = hs_y0 + (hs_dx/2) +2;
+hsm_z0 = box_dz;
 
 // xyza of the vent points
-vent_x0 = 6;
+vent_x0 = 7;
 vent_pitch = 6;
+vent_num = 7;
 
     /*
     *
@@ -105,7 +118,7 @@ module fan_blades()
         }
         d = fan_out_r * 1.2;
         // blades
-        for (angle = [ 0 : fan_blade_step : 360 ] )
+        for (angle = [ fan_blade_start : fan_blade_step : 360 + fan_blade_start ] )
         {
             points = [
                 [ 0, 0 ],
@@ -287,18 +300,28 @@ module pcb()
 module heatsink()
 {
     t = 1;
+    a = hs_dz * 0.25;
     rotate( [ 0, 0, 180 ] )
     translate([ -hs_dx/2, 0, 0 ] )
     difference()
     {
         union()
         {
-            cube([ t, hs_dy, hs_dz] );
-            translate([ hs_dx - t, 0, 0 ] )
-            cube([ t, hs_dy, hs_dz] );
+            translate([ 0, a, 0 ] )
             cube([ hs_dx, t, hs_dz] );
+
+            dx = hs_dx / 5;
+            for (x = [ 0, dx, (2 * dx) - (t/2), (3 * dx) - (t/2), 4 * dx, hs_dx - t ] )
+            {
+                if ((x == 0) || (x == (hs_dx - t)))
+                    translate([ x, 0, 0 ] )
+                    cube([ t, hs_dy, hs_dz] );
+                else
+                    translate([ x, a, 0 ] )
+                    cube([ t, hs_dy - a, hs_dz] );
+            }
         }
-        translate([ hs_dx/2, -0.01, hs_hole_dz ] )
+        translate([ hs_dx/2, a-0.01, hs_hole_dz ] )
         rotate([ 270, 0, 0 ] )
         cylinder(h=t+0.02, r=hs_r);
     }
@@ -307,14 +330,14 @@ module heatsink()
 module heatsink_mount(extra)
 {
     t = 1;
-    translate([ -hs_dx/2, 0, 0 ] )
+    translate([ -hsm_dx/2, 0, 0 ] )
     difference()
     {
         union()
         {
-            cube([ hs_dx, hsm_dy, hs_dz + extra] );
+            cube([ hsm_dx, hsm_dy, hsm_dz + extra] );
         }
-        translate([ hs_dx/2, -0.01, hs_hole_dz + extra ] )
+        translate([ hsm_dx/2, -0.01, hs_hole_dz + extra ] )
         rotate([ 270, 0, 0 ] )
         cylinder(h=hsm_dy+0.02, r=hs_r);
     }
@@ -430,22 +453,22 @@ module main()
             cube( [ box_dx + rb_margin, rib_w, outlet_mount ] );
 
             // heatsink mount
-            //translate([ hs_x0, hs_y0, hs_z0 + hs_extra + 0.01 ] )
-            //rotate([ 0, 180, 0 ] )
-            //heatsink_mount(hs_extra);
+            translate([ hsm_x0, hsm_y0, hsm_z0 ] )
+            rotate([ 0, 180, 0 ] )
+            heatsink_mount(hs_extra);
         }
 
         #union()
         {
             fan_x0 = fan_dz;
-            fan_y0 = outlet_dy - fan_dy;
-            fan_z0 = box_dz - (fan_dx / 2) - box_thick - 3;
+            fan_y0 = outlet_dy - fan_dy - 1;
+            fan_z0 = box_dz - (fan_dx / 2) - box_thick - 6;
             translate([ fan_x0, fan_y0, fan_z0 ] )
             rotate( [ 0, 270, 0 ] )
             fan();
 
             // make holes for ventilation ingress
-            for (i = [ 0 : 6 ] )
+            for (i = [ 0 : vent_num-1 ] )
             {
                 translate([ box_dx + box_thick, vent_x0 + (i * vent_pitch), box_dz/2 ] )
                 vent();
@@ -456,7 +479,7 @@ module main()
 
             translate([ outlet_off + (outlet_dx/2), box_dy - 15, (box_dz-box_thick)/2 ])
             rotate([ 90, 0, 180 ])
-            iec_cutout(iec_s3, 25, m3_hole_r);
+            iec_cutout(iec_style, 25, m3_hole_r);
 
             translate([ x0, y0, box_dz - pcb_mount - box_thick ])
             rotate([ 0, 0, 270 ] )
@@ -484,9 +507,9 @@ module main()
             }
 
             // heatsink 
-            //translate([ hs_x0, hs_y0, hs_z0  ] )
-            //rotate([ 0, 180, 0 ] )
-            //heatsink();
+            translate([ hs_x0, hs_y0, hs_z0 - box_dz  ] )
+            rotate(hs_rot)
+            heatsink();
         }
     }
 }
@@ -687,6 +710,26 @@ if (0) difference()
     leds_cut(e);
 }
 
-//vent();
+// Test the fan / vent design
+
+if (0)
+rotate([ 0, 90, 0 ] )
+difference()
+{
+    dx = 40;
+    dy = 30;
+    translate( [ -dx/2, -dy/2, 0 ] )
+    cube ([ dx + (box_dz/2), dy, box_thick ] );
+    translate([ 0, 0, -10 ] )
+    fan();
+
+    span = 20;
+    for (y = [ -span : vent_pitch : span ] )
+    {
+        translate([ 22, y, box_thick/2 ] )
+        rotate([ 0, 90, 0] )
+        #vent();
+    }
+}
 
 //  FIN
