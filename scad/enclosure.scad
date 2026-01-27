@@ -16,7 +16,7 @@ pcb_dx = xco(221.5);
 pcb_dy = 107.2 - _y0;
 pcb_dz = 1.5;
 pcb_mount = 8; // height of mounting pillar
-pcb_margin_x = 1;
+pcb_margin_x = 2.5;
 pcb_margin_y = 13;
 psu_dz = 15;
 
@@ -50,6 +50,18 @@ led_h = 8 - 2.5;
 led_outer_r = 6/2;
 led_upper = 2;
 
+// Fan
+fan_dx = 20;
+fan_dy = 20;
+fan_dz = 6.5;
+fan_indent = (20 - 16) / 2;
+fan_r = m2_hole_r;
+fan_in_r = 10/2;
+fan_out_r = 18/2;
+fan_t = 20;
+fan_blade_step = 30; // degrees
+fan_blade_opening = 24; // degrees
+
 // box
 box_dx = 135;
 box_dy = 100;
@@ -71,6 +83,87 @@ hs_y0 = box_dy - 10;
 hs_z0 = hs_dz + 1;
 hs_extra = 6;
 hsm_dy = 4; // mount thickness
+
+// xyza of the vent points
+vent_x0 = 6;
+vent_pitch = 6;
+
+    /*
+    *
+    */
+
+module fan_blades()
+{
+    translate( [ fan_dx/2, fan_dy/2, 0 ] )
+    intersection()
+    {
+        // doughnut between fan inner and outer radius
+        difference()
+        {
+            cylinder(h=fan_t, r=fan_out_r);
+            cylinder(h=fan_t, r=fan_in_r);
+        }
+        d = fan_out_r * 1.2;
+        // blades
+        for (angle = [ 0 : fan_blade_step : 360 ] )
+        {
+            points = [
+                [ 0, 0 ],
+                [ d * sin(angle), d * cos(angle) ],
+                [ d * sin(angle+fan_blade_opening), d * cos(angle+fan_blade_opening) ],
+            ];
+            linear_extrude(height=fan_t)
+            polygon(points);
+        }
+    }
+}
+
+module fan()
+{
+    translate( [ -fan_dx/2, -fan_dy/2, 0 ] )
+    //difference()
+    {
+        cube([ fan_dx, fan_dy, fan_dz ] );
+
+        points = [
+            [ fan_indent,           fan_indent ],
+            [ fan_indent,           fan_dy - fan_indent ],
+            [ fan_dx - fan_indent,  fan_dy - fan_indent ],
+            [ fan_dx - fan_indent,  fan_indent ],
+        ];
+
+        for (xy = points)
+        {
+            translate([ xy[0], xy[1], 0 ])
+            #cylinder(h = fan_t, r=fan_r); 
+        }
+
+        fan_blades();
+    }
+}
+
+module vent()
+{
+    x = box_thick / 4;
+    y = box_thick / 3;
+    dz = box_dz * 0.7;
+
+    points = [
+        [ -3*x, -3*y ],
+        [ -3*x, -1*y ],
+        [ -1*x, -1*y ],
+        [ +1*x, +3*y ],
+        [ +3*x, +3*y ],
+        [ +3*x, +1*y ],
+        [ +1*x, +1*y ],
+        [ -1*x, -3*y ],
+        [ -3*x, -3*y ],
+    ];
+
+    translate( [ 0, 0, -dz/2 ] )
+    linear_extrude(height=dz)
+    polygon(points);
+}
 
     /*
     *
@@ -330,6 +423,20 @@ module main()
 
         #union()
         {
+            fan_x0 = fan_dz;
+            fan_y0 = outlet_dy - fan_dy;
+            fan_z0 = box_dz - (fan_dx / 2) - box_thick - 3;
+            translate([ fan_x0, fan_y0, fan_z0 ] )
+            rotate( [ 0, 270, 0 ] )
+            fan();
+
+            // make holes for ventilation ingress
+            for (i = [ 0 : 6 ] )
+            {
+                translate([ box_dx + box_thick, vent_x0 + (i * vent_pitch), box_dz/2 ] )
+                vent();
+            }
+
             translate([ outlet_off, outlet_off, box_dz+0.01 ] )
             outlet(15);
 
@@ -538,6 +645,8 @@ module devbox_lid()
     *
     */
 
+//s = 1/3;
+//scale([ s, s, s ] )
 if (1) rotate([ 0, 180, 0 ] )
 translate( [ -box_dx/2, -box_dy/2, 0 ] )
 {
@@ -564,6 +673,6 @@ if (0) difference()
     leds_cut(e);
 }
 
-//pcb();
+//vent();
 
 //  FIN
