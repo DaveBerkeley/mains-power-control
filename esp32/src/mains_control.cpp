@@ -847,9 +847,9 @@ void mains_control_init(const char *topic)
     db.get("base", & base);
     db.get("load", & load);
     db.get("target", & target);
-    db.get("fan_on", & target);
-    db.get("fan_off", & target);
-    db.get("alarm", & target);
+    db.get("fan_on", & fan_on);
+    db.get("fan_off", & fan_off);
+    db.get("alarm", & alarm);
     PO_DEBUG("base=%d load=%d target=%d", (int) base, (int) load, (int) target);
  
     PowerControl *pc = PowerControl::create(load, target);
