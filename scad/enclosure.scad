@@ -238,6 +238,13 @@ module pcb()
     _led_x0 = xco(192.525) - 2.54;
     _led_y0 = yco(81.25);
 
+    stm32_dx = 23;
+    stm32_dy = 53;
+    stm32_dz = 14;
+    stm32_x0 = 38;
+    stm32_y0 = 0;
+    stm32_dz2 = 22;
+
     translate([ -pcb_dx/2, -pcb_dy/2, 0 ] )
     difference()
     {
@@ -246,6 +253,13 @@ module pcb()
             cube([ pcb_dx, pcb_dy, pcb_dz ]);
             translate( [ psu_x0, psu_y0, pcb_dz ] )
             cube([ psu_dx, psu_dy, psu_dz ]);
+
+            translate( [ stm32_x0, stm32_y0, pcb_dz ] )
+            {
+                cube([ stm32_dx, stm32_dy, stm32_dz ]);
+                translate( [ 10, 40, 0 ] )
+                cube([ 5, 5, stm32_dz2 ]);
+            }
 
             // switch cutout
             translate([ sw_x0, sw_y0, -cut_size+0.01 ])
