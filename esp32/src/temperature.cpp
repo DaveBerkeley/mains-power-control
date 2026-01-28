@@ -40,7 +40,7 @@ void TemperatureControl::set_fan(bool on)
     if (fan_state == on) return;
     fan_state = on;
     PO_DEBUG("fan %s t=%d", on ? "on" : "off", temperature);
-    config.fan->set(on);
+    config.fan->set(on ^ config.fan_xor);
 }
 
 void TemperatureControl::fan_control()

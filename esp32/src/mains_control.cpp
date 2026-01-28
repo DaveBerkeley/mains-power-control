@@ -74,7 +74,9 @@ static bool leds_init(Device *dev, void *arg)
 }
 
 static const GPIO_DEF button_def = { GPIO_NUM_8, ESP_GPIO::IP | ESP_GPIO::PU, false };
-static const GPIO_DEF fan_def = { GPIO_NUM_6, ESP_GPIO::OP, false };
+// TODO : change to drive (not open-drain) and invert for v 1.1 PCB!
+static bool fan_xor = 1;
+static const GPIO_DEF fan_def = { GPIO_NUM_6, ESP_GPIO::OP | ESP_GPIO::OD, true };
 static const GPIO_DEF lamp_def = { GPIO_NUM_10, ESP_GPIO::OP | ESP_GPIO::OD, false };
 
 #define UART_BAUD 115200
@@ -838,6 +840,7 @@ void mains_control_init(const char *topic)
     TemperatureSensor *temperature = (TemperatureSensor*) Objects::objects->get("temperature");
  
     Storage db("app");
+
     int32_t base = 20;
     int32_t load = 1000;
     int32_t target = -40;
@@ -860,6 +863,7 @@ void mains_control_init(const char *topic)
         .fan_on = fan_on,
         .fan_off = fan_off,
         .alarm = alarm,
+        .fan_xor = fan_xor,
     };
 
     PowerManager::Config config = {

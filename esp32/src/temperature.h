@@ -21,6 +21,7 @@ struct TemperatureControlConfig
     int fan_on;
     int fan_off;
     int alarm;
+    bool fan_xor;
 };
 
     /*
