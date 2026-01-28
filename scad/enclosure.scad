@@ -54,22 +54,36 @@ led_outer_r = 6/2;
 led_upper = 2;
 
 // Fan
-fan_dx = 20;
-fan_dy = 20;
-fan_dz = 6.5;
+// big fan
+fan_dx = 30;
+fan_dy = 30;
+fan_dz = 7;
 fan_indent = (20 - 16) / 2;
 fan_r = m2_hole_r;
-fan_in_r = 10/2;
-fan_out_r = 18/2;
+fan_in_r = 16/2;
+fan_out_r = 28/2;
 fan_t = 20;
-fan_blade_start = 15; // degrees
-fan_blade_step = 30; // degrees
-fan_blade_opening = 24; // degrees
+fan_blade_start = 0; // degrees
+fan_blade_step = 20; // degrees
+fan_blade_opening = 16; // degrees
+
+// small fan
+//fan_dx = 20;
+//fan_dy = 20;
+//fan_dz = 6.5;
+//fan_indent = (20 - 16) / 2;
+//fan_r = m2_hole_r;
+//fan_in_r = 10/2;
+//fan_out_r = 18/2;
+//fan_t = 20;
+//fan_blade_start = 15; // degrees
+//fan_blade_step = 30; // degrees
+//fan_blade_opening = 24; // degrees
 
 // box
 box_dx = 135;
 box_dy = 100;
-box_dz = 30;
+box_dz = 34;
 box_thick = 3;
 box_r = 5; // corner curve
 
@@ -80,11 +94,11 @@ lid_dz = 10;
 hs_dx = 25;
 hs_dy = 16;
 hs_dz = 23;
-hs_hole_dz = 22;
+hs_hole_dz = 18;
 hs_r = m2_hole_r;
 hs_x0 = hs_dx + fan_dz; // box_dx - pcb_dx - hs_dx + 1;
 hs_y0 = box_dy - 36;
-hs_z0 = hs_dz + 6;
+hs_z0 = hs_dz + 14;
 hs_extra = 6;
 hs_rot = [ 90, 180, 270 ];
 
@@ -96,10 +110,10 @@ hsm_x0 = hs_x0 - (hs_dx/2);
 hsm_y0 = hs_y0 + (hs_dx/2) +2;
 hsm_z0 = box_dz;
 
-// xyza of the vent points
+// vent slots
 vent_x0 = 7;
-vent_pitch = 6;
-vent_num = 7;
+vent_pitch = 8;
+vent_num = 5;
 
     /*
     *
@@ -157,20 +171,20 @@ module fan()
 
 module vent()
 {
-    x = box_thick / 4;
-    y = box_thick / 3;
+    x = box_thick * 0.25;
+    y = box_thick * 0.38;
     dz = box_dz * 0.7;
 
     points = [
-        [ -3*x, -3*y ],
-        [ -3*x, -1*y ],
         [ -1*x, -1*y ],
-        [ +1*x, +3*y ],
+        [ -1*x, +3*y ],
         [ +3*x, +3*y ],
         [ +3*x, +1*y ],
         [ +1*x, +1*y ],
-        [ -1*x, -3*y ],
+        [ +1*x, -3*y ],
         [ -3*x, -3*y ],
+        [ -3*x, -1*y ],
+        [ -1*x, -1*y ],
     ];
 
     translate( [ 0, 0, -dz/2 ] )
@@ -423,12 +437,7 @@ module main()
                 for (xy = pcb_holes)
                 {
                     translate([ xy[0] - (pcb_dx/2), (pcb_dy/2) - xy[1], box_dz-pcb_mount-box_thick ])
-                    difference()
-                    {
-                        cylinder(h=pcb_mount, r=m3_thread_r*2.5);
-                        translate([ 0, 0, -0.01] )
-                        cylinder(h=pcb_mount, r=m3_thread_r);
-                    }
+                    cylinder(h=pcb_mount, r=m3_thread_r*2.5);
                 }
             }
             // outlet mounting posts
@@ -449,7 +458,7 @@ module main()
                 translate( [ x - (rib_w/2), -rb_margin/2, 0 ] )
                 cube( [ rib_w, box_dy + rb_margin, outlet_mount ] );
             }
-            translate( [ -rb_margin/2, outlet_dy - 10, rib_dz ] )
+            translate( [ -rb_margin/2, outlet_dy - 6, rib_dz ] )
             cube( [ box_dx + rb_margin, rib_w, outlet_mount ] );
 
             // heatsink mount
@@ -460,17 +469,37 @@ module main()
 
         #union()
         {
+            // pcb mounting posts
+            translate([ x0, y0, 0 ])
+            {
+                rotate( [ 0, 0, 270 ] )
+                for (xy = pcb_holes)
+                {
+                    translate([ xy[0] - (pcb_dx/2), (pcb_dy/2) - xy[1], box_dz-pcb_mount-box_thick ])
+                    translate([ 0, 0, -0.01] )
+                    cylinder(h=pcb_mount, r=m3_thread_r);
+                }
+            }
+
             fan_x0 = fan_dz;
-            fan_y0 = outlet_dy - fan_dy - 1;
-            fan_z0 = box_dz - (fan_dx / 2) - box_thick - 6;
+            fan_y0 = outlet_dy - (fan_dy/2) - 8;
+            fan_z0 = box_dz - (fan_dx / 2) - box_thick - 1;
             translate([ fan_x0, fan_y0, fan_z0 ] )
             rotate( [ 0, 270, 0 ] )
             fan();
 
             // make holes for ventilation ingress
+            // side
             for (i = [ 0 : vent_num-1 ] )
             {
                 translate([ box_dx + box_thick, vent_x0 + (i * vent_pitch), box_dz/2 ] )
+                vent();
+            }
+            // front
+            for (x = [ 10 : vent_pitch : box_dx-10 ] )
+            {
+                translate([ x, -box_thick, box_dz/2 ] )
+                rotate([ 0, 0, 90 ] )
                 vent();
             }
 
@@ -515,175 +544,13 @@ module main()
 }
 
     /*
-    * development box : to cover up the mains parts
-    */
-
-db_corner_r = m3_thread_r*2;
-db_margin = (db_corner_r / 2) + 1;
-db_t = 2;
-db_mount = 8;
-stm32_extra = 6;
-db_dz = 12;
-db_xi = 62 - db_margin;
-db_xx = [ -db_margin, db_xi, pcb_dx + (2 * db_margin) + db_corner_r ];
-db_yy = [ -db_margin, pcb_dy + (2 * db_margin) + db_corner_r + stm32_extra ];
-db_lid_dz = 19;
-
-module _devbox(h, r, short)
-{
-    ix_max = short ? 1 : 2;
-    hull()
-    for (ix = [ 0 : ix_max ])
-    {
-        x = db_xx[ix];
-        for (y = db_yy)
-        {
-            translate([ x, y, 0] )
-            cylinder(h=h, r=r);
-        }
-    }
-}
-
-module devbox()
-{
-    pcb_hole_off = db_margin;
-    difference()
-    {
-        union()
-        {
-            // pcb mounts
-            for (xy = pcb_holes)
-            {
-                translate([ xy[0] + pcb_hole_off, xy[1] + pcb_hole_off, 0] )
-                {
-                    difference()
-                    {
-                        cylinder(h=db_mount, r=m3_hole_r*2);
-                        translate( [ 0, 0, +0.01 ] )
-                        cylinder(h=db_mount+0.02, r=m3_thread_r);
-                    }
-                }
-            }
-
-            // base / sides
-            difference()
-            {
-                _devbox(db_dz, db_corner_r, false);
-                translate( [ 0, 0, db_t ] )
-                _devbox(db_dz, 1, false);
-                //translate( [ -db_margin, -db_margin, db_t ] )
-                //cube([ pcb_dx + (db_margin*2), pcb_dy + (db_margin+2), db_dz ]);
-            }
-
-            // corner mounts
-            for (x = db_xx)
-            {
-                for (y = db_yy)
-                {
-                    translate([ x, y, 0] )
-                    cylinder(h=db_dz, r=db_corner_r);
-                }
-            }
-        }
-
-        // subtract these :
-
-        translate( [ (pcb_dx/2) + db_margin, (pcb_dy/2) + db_margin, db_mount ] )
-        #pcb();
-
-        // pcb mounts
-        for (xy = pcb_holes)
-        {
-            translate([ xy[0] + pcb_hole_off, xy[1] + pcb_hole_off, 0.01] )
-            cylinder(h=db_mount+0.02, r=m3_thread_r);
-        }
-
-        // corner mounts
-        for (x = db_xx)
-        {
-            for (y = db_yy)
-            {
-                translate([ x, y, db_t ] )
-                cylinder(h=db_dz+0.02, r=m3_thread_r);
-            }
-        }
-    }
-}
-
-module devbox_lid()
-{
-    // lid
-    translate([ 0, 0, db_dz + 2 ])
-    difference()
-    {
-        union()
-        {
-            // top
-            translate([ 0, 0,  db_lid_dz ])
-            _devbox(db_t, db_corner_r, true);
-
-            // sides
-            difference()
-            {
-                _devbox(db_lid_dz, db_corner_r, true);
-                translate( [ 0, 0, -0.01 ] )
-                _devbox(db_lid_dz, 1, true);
-            }
-
-            // mounts
-            for (idx = [ 0 : 1 ])
-            {
-                x = db_xx[idx];
-                for (y = db_yy)
-                {
-                    translate([ x, y, 0 ] )
-                    cylinder(h=db_t + db_lid_dz + 0.02, r=db_corner_r+1);
-                }                
-            }
-        }
-
-        // holes for fixing screws
-        for (idx = [ 0 : 1 ])
-        {
-            x = db_xx[idx];
-            for (y = db_yy)
-            {
-                translate([ x, y, -0.01 ] )
-                {
-                    cylinder(h=db_t + db_lid_dz + 0.04, r=m3_hole_r);
-                    db_head = 10;
-                    translate( [ 0, 0, db_lid_dz + db_t - db_head + 0.01 ] )
-                    cylinder(h=db_head + 0.04, r=m3_head_r);
-                }
-            }
-        }
-
-        // cutout for stm32
-        {
-            dx = db_t * 2;
-            dy = pcb_dy + 2;
-            dz = db_lid_dz;
-            translate( [ db_xx[1], 2, -0.01 ] )
-            cube( [ dx, dy, dz ] );
-        }
-
-        // cutout for mains power
-        {
-            mdx = db_t * 2;
-            mdy = pcb_dy * 0.6;
-            mdz = db_lid_dz * 0.4;
-            translate( [ -db_margin*2 - db_t, 2, -0.01 ] )
-            cube( [ mdx, mdy, mdz ] );
-        }
-    }
-}
-
-    /*
     *
     */
 
 //s = 1/3;
 //scale([ s, s, s ] )
+//intersection()
+//{
 if (1) rotate([ 0, 180, 0 ] )
 translate( [ -box_dx/2, -box_dy/2, 0 ] )
 {
@@ -692,6 +559,9 @@ translate( [ -box_dx/2, -box_dy/2, 0 ] )
     else
         lid();    
 }
+//translate( [ 30, -4, -40 ] )
+//#cube([ 50, 35, 45 ]);
+//}
 
 //devbox();
 //rotate( [ 180, 0, 0 ] )
