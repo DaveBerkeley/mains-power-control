@@ -55,13 +55,13 @@ led_upper = 2;
 
 // Fan
 // big fan
-fan_dx = 30;
-fan_dy = 30;
+fan_dx = 25;
+fan_dy = 25;
 fan_dz = 7;
 fan_indent = (20 - 16) / 2;
 fan_r = m2_hole_r;
-fan_in_r = 16/2;
-fan_out_r = 28/2;
+fan_in_r = 14/2;
+fan_out_r = 24/2;
 fan_t = 20;
 fan_blade_start = 0; // degrees
 fan_blade_step = 20; // degrees
@@ -83,7 +83,7 @@ fan_blade_opening = 16; // degrees
 // box
 box_dx = 135;
 box_dy = 100;
-box_dz = 34;
+box_dz = 31;
 box_thick = 3;
 box_r = 5; // corner curve
 
@@ -96,16 +96,16 @@ hs_dy = 16;
 hs_dz = 23;
 hs_hole_dz = 18;
 hs_r = m2_hole_r;
-hs_x0 = hs_dx + fan_dz; // box_dx - pcb_dx - hs_dx + 1;
+hs_x0 = hs_dx + fan_dz - 1;
 hs_y0 = box_dy - 36;
-hs_z0 = hs_dz + 14;
+hs_z0 = hs_dz + 12;
 hs_extra = 6;
 hs_rot = [ 90, 180, 270 ];
 
 // heatsink mount
 hsm_dx = 15;
 hsm_dy = 4; // mount thickness
-hsm_dz = 26;
+hsm_dz = 22;
 hsm_x0 = hs_x0 - (hs_dx/2);
 hsm_y0 = hs_y0 + (hs_dx/2) +2;
 hsm_z0 = box_dz;
@@ -536,7 +536,7 @@ module main()
             }
 
             // heatsink 
-            translate([ hs_x0, hs_y0, hs_z0 - box_dz  ] )
+            translate([ hs_x0, hs_y0, hs_z0 - box_dz ] )
             rotate(hs_rot)
             heatsink();
         }
@@ -547,8 +547,6 @@ module main()
     *
     */
 
-//s = 1/3;
-//scale([ s, s, s ] )
 //intersection()
 //{
 if (1) rotate([ 0, 180, 0 ] )
@@ -560,7 +558,7 @@ translate( [ -box_dx/2, -box_dy/2, 0 ] )
         lid();    
 }
 //translate( [ 30, -4, -40 ] )
-//#cube([ 50, 35, 45 ]);
+//#cube([ 50, 38, 45 ]);
 //}
 
 //devbox();
