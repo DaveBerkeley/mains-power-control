@@ -2,6 +2,10 @@
 Mains Power Controller
 ----
 
+### WORK IN PROGRESS!
+
+----
+
 ## Warning!
 
 Mains electricity can kill you. If you don't know what you are doing, don't do it. You have been warned.

@@ -47,6 +47,7 @@ public:
     bool get_temperature(int *t);
 
     void set_sensor(panglos::TemperatureSensor *);
+    const TemperatureControlConfig *get_config() { return & config; }
 };
 
 //  FIN

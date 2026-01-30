@@ -17,6 +17,7 @@ TemperatureControl::TemperatureControl(TemperatureControlConfig *c)
         // if we have no temperature sensor, turn the fan on all the time
         config.fan->set(config.sensor ? false : true);
     }
+    PO_DEBUG("fan_on=%d fan_off=%d alarm=%d", c->fan_on, c->fan_off, c->alarm);
 }
 
 void TemperatureControl::check_temperature()

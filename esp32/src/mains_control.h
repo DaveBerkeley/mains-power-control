@@ -112,6 +112,8 @@ public:
     virtual void sim_phase(bool on, int phase) = 0;
     virtual void sim_temperature(bool on, int t) = 0;
     virtual void forward(const char *s) = 0;
+
+    virtual TemperatureControl *get_temp_control() = 0;
     
     static PowerManager *create(const Config *config);
 };

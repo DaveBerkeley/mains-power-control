@@ -98,12 +98,24 @@ void cli_show(CLI *cli, CliCommand *cmd)
     ASSERT(cmd->ctx);
     PowerManager *pm = (PowerManager*) cmd->ctx;
 
+    const struct TemperatureControlConfig *tc = 0;
+    TemperatureControl *t = pm->get_temp_control();
+    if (t) tc = t->get_config();
+
     cli_print(cli, "power=%dW%s", pm->get_power(), cli->eol);
     cli_print(cli, "percent=%d%% %s", pm->get_percent(), cli->eol);
     cli_print(cli, "phase=%d%s", pm->get_phase(), cli->eol);
     cli_print(cli, "mode=%s%s", pm->mode_name(pm->get_mode()), cli->eol);
     cli_print(cli, "temp=%dC%s", pm->get_temperature(), cli->eol);
     cli_print(cli, "error=%s%s", pm->get_error_mode(), cli->eol);
+    if (tc)
+    {
+        cli_print(cli, "fan_on=%d fan_off=%d alarm=%d%s", 
+                (int) tc->fan_on, 
+                (int) tc->fan_off, 
+                (int) tc->alarm, 
+                cli->eol);
+    }
 }
 
     /*

@@ -162,19 +162,19 @@ class SimTemp : public TemperatureSensor
             if (t) *t = temp;
             return true;
         }
-        ASSERT(proxy);
+        if (!proxy) return false;
         return proxy->get_temp(t);
     }
     virtual bool start_conversion() override
     {
         if (sim) return true;
-        ASSERT(proxy);
+        if (!proxy) return true;
         return proxy->start_conversion();
     }
     virtual bool ready() override
     {
         if (sim) return true;
-        ASSERT(proxy);
+        if (!proxy) return true;
         return proxy->ready();
     }
 
@@ -229,6 +229,12 @@ class _PowerManager : public PowerManager
     enum Error error_state;
 
     SimTemp sim_temp;
+
+    virtual TemperatureControl *get_temp_control() override
+    {
+        return & temp_control;
+    }
+    
 public:
 
     virtual int get_phase() override
