@@ -187,7 +187,8 @@ works with either OneWire driver.
 It follows the [Panglos][Panglos] design philosophy of removing all hardware and OS dependency from the code.
 It also abstracts the temperature sensor so that you can unit test the control code without the hardware.
 
-The temperature control code is very simple. It simply turns on a fan when the temperature rises above a set point.
+The temperature control code is very simple.
+It simply turns on a fan when the temperature rises above a set point.
 It turns the fan off when the teperature falls below a different set point.
 It also proves an alarm() output for over-temperature.
 As both the Temperature sensor and the GPIO used to control the fan are both abstracted, 
@@ -330,6 +331,18 @@ The PCB looks like this :
 
 ![PCB](docs/Screenshot_2026-01-26_17-35-11.png)
 
+In version 1.1 of the board I placed the LEDs and switch housing on the PCB itself, 
+rather than have a flying lead.
+I added a FET switch to control the fan and a OneWire interface for the temperature sensor.
+I left on test points for the STM32.
+The XIAO ESP32C3 has an antenna socket. The simple ESP32C3 supermini boards do not
+and this can limit the WiFi receprion. 
+There is also a ESP32C3 supermini plus that has an antenna socket.
+I've been using this for other projects.
+
+The circuit is missing a proper snubber circuit for the TRIACs.
+The design would fail EMC regulations. I need to add this.
+
 ----
 
 Enclosure
@@ -342,6 +355,9 @@ The enclosure design is written in
 
 The unit has an IEC inlet, and UK style 13-Amp plug socket, the control PCB
 connected to the switch and LEDs, the TRAIC mounted on a heatsink and a cooling fan.
+
+There are air inlets on 2 sides, to allow the fan to produce a flow of air across the heatsink.
+The inlets are designed with a kink in the path to prevent you from pushing things through them.
 
 [Panglos]: https://github.com/DaveBerkeley/panglos 
 [CLI library]: https://github.com/DaveBerkeley/cli

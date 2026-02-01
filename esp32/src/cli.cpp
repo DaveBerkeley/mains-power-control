@@ -110,11 +110,7 @@ void cli_show(CLI *cli, CliCommand *cmd)
     cli_print(cli, "error=%s%s", pm->get_error_mode(), cli->eol);
     if (tc)
     {
-        cli_print(cli, "fan_on=%d fan_off=%d alarm=%d%s", 
-                (int) tc->fan_on, 
-                (int) tc->fan_off, 
-                (int) tc->alarm, 
-                cli->eol);
+        cli_print(cli, "fan_on=%d fan_off=%d alarm=%d%s", tc->fan_on, tc->fan_off, tc->alarm, cli->eol);
     }
 }
 
