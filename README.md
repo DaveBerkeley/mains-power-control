@@ -25,7 +25,7 @@ I designed a smart meter that sends out
 messages every second showing the total power import / export for my home/.
 Using these messages I can apply power to a load that uses any excess solar power.
 
-The design is simple : detect the zero-crossing point of the mains power wavewform.
+The design is simple : detect the zero-crossing point of the mains power waveform.
 Turn on a [TRIAC](https://en.wikipedia.org/wiki/TRIAC),
 controlling the phase to adjust the power applied to a load.
 
@@ -34,7 +34,7 @@ It has two back to back LEDs and a photo transistor.
 It provides Galvanic isolation, to separate the microcontroller from the mains power.
 It just needs a single series resistor to set the max LED current.
 
-The output circuit uses an opto-TRIAC [MOC3020[(docs/MOC3020.pdf)
+The output circuit uses an opto-TRIAC [MOC3020](docs/MOC3020.pdf)
 connected to a power TRAIC, the [BTA24](BTA24.pdf).
 The opto device provides Galvanic isolation, the power TRIAC does the heavy lifting.
 
@@ -57,7 +57,12 @@ Without a Schmitt trigger the slow analog input signal causes spikes and multipl
 So I ended up with a hybrid solution. Not a great one, but a compromise.
 I used 2 microcontrollers - one to provide the zero crossing detection and phase control,
 the second to driver the control system and MQTT interface.
-I settled on an STM32F1 as they are cheap, simple and I had one available.
+I settled on an STM32F1 as they are cheap, simple and I had one to hand.
+
+![Using a thermal camera to check the temperature](docs/IMG_20260204_152732Z.jpg)
+
+Using a thermal camera to check the temperature on the first prototype.
+The fan was too small to cool the heatsink adequately.
 
 ----
 
@@ -110,7 +115,7 @@ I just went with the CLI. It was already there and easy to use.
 
 The device initialisation is data driven.  The STM32F1 is a relatively simple device. 
 Each IO pin can have an ALT purpose, so the function is tied to a specific pin.
-In the ESP32 you can assign any pin to be connected to a peripheral.
+In the ESP32 you can assign any pin to be connected to any peripheral.
 The config code simply sets the ALT function for GPIOs that are intialised eleswhere
 by their drivers.
 
@@ -235,7 +240,7 @@ mains_control_init().
 This function creates the temperature controller (reponsible for fan control and alarms),
 the power control (responsible for power / phase control)
 and the power manager, that runs the overall system.
-A 100ms timer is used to read the UI button. 
+A 10ms timer is used to read the UI button. 
 Callbacks drive the power manager :  MQTT callbacks provide smart meter data,
 on_idle() provides an idle hook into the CLI.
 Commands are added to the CLI.
@@ -305,8 +310,8 @@ The default is 20%.
 This can be used, for example, to power a kettle. It uses any solar power is possible,
 but if not enough is available it will still boil the water : it will just take longer.
 
-Error modes are show by alternating flashing of the 2 LEDs. Over temperature as Red flashing LEDs,
-WiFi or MQTT error as Blue. In error more the power to the load will be reduced to zero
+Error modes are shown by alternating flashing of the 2 LEDs. Over temperature as Red flashing LEDs,
+WiFi or MQTT error as Blue. In error mode the power to the load will be reduced to zero
 until the error clears. If the network is down for too long the unit will reboot 
 and try to connect again. The MQTT driver will attempt to reconnect if it loses connection.
 
@@ -336,7 +341,7 @@ rather than have a flying lead.
 I added a FET switch to control the fan and a OneWire interface for the temperature sensor.
 I left on test points for the STM32.
 The XIAO ESP32C3 has an antenna socket. The simple ESP32C3 supermini boards do not
-and this can limit the WiFi receprion. 
+and this can limit the WiFi reception. 
 There is also a ESP32C3 supermini plus that has an antenna socket.
 I've been using this for other projects.
 
