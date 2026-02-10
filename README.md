@@ -12,6 +12,8 @@ Mains electricity can kill you. If you don't know what you are doing, don't do i
 
 ----
 
+![inside the enclosure](docs/IMG_20260207_121224Z.jpg)
+
 I wanted a way to divert excess power from my solar panels into a load,
 so I can use just excess solar power.
 For example, to run an electric heater or a kettle.
@@ -62,7 +64,7 @@ I settled on an STM32F1 as they are cheap, simple and I had one to hand.
 ![Using a thermal camera to check the temperature](docs/IMG_20260204_152732Z.jpg)
 
 Using a thermal camera to check the temperature on the first prototype.
-The fan was too small to cool the heatsink adequately.
+This fan was too small to cool the heatsink adequately.
 
 ----
 
@@ -205,7 +207,7 @@ control systems are working.
 The CLI is available over the USB/UART interface.
 The ESP32 also runs a CLI server over the WiFi connection on port 6668, so you can telnet to the device remotely.
 This makes test and monitoring very simple.
-To monitor the divice you can, for example, 
+To monitor the device you can, for example, 
 turn on 'verbose' mode for the app and log all debug output to the selected network CLI.
 
     > verbose app 1
@@ -229,10 +231,10 @@ The main control code is in [esp32/src/mains_control.cpp](esp32/src/mains_contro
 The device initialisation is more complex than the STM32 case. It uses the
 panglos::init_devices() code. This takes an array of Device descriptions
 and initialises them in order, taking into account any device dependency.
-By convention the Device array board_devs is used to specify all the devices.
-The function board_init() is also called after the main system is up.
 In this case the ds18b20 temperature sensor needs the OneWire device to be 
 created first.
+By convention the Device array board_devs is used to specify all the devices.
+The function board_init() is also called after the main system is up.
 
 The board_init() function registers the network CLI handler.
 It then fetches the MQTT config from non-volatile storage and calls
@@ -354,11 +356,11 @@ Enclosure
 ====
 
 The enclosure design is written in 
-[SCAD][https://openscad.org/).
+[SCAD](https://openscad.org/).
 
 ![Enclosure CAD view](docs/Screenshot_2026-01-30_13-13-38.png)
 
-The unit has an IEC inlet, and UK style 13-Amp plug socket, the control PCB
+The unit has an IEC power inlet, a UK style 13-Amp plug socket, the control PCB
 connected to the switch and LEDs, the TRAIC mounted on a heatsink and a cooling fan.
 
 There are air inlets on 2 sides, to allow the fan to produce a flow of air across the heatsink.
