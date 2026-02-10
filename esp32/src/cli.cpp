@@ -194,6 +194,49 @@ void cli_temp(CLI *cli, CliCommand *cmd)
      *
      */
 
+static void led_err(CLI *cli, CliCommand *cmd)
+{
+    cli_print(cli, "expected: %s <idx|off> [r g b]%s", cmd->cmd, cli->eol);
+}
+
+static void cli_led(CLI *cli, CliCommand *cmd)
+{
+    ASSERT(cmd);
+    PowerManager *pm = (PowerManager*) cmd->ctx;
+    ASSERT(pm);
+
+    int idx = 0;
+    const char *s = cli_get_arg(cli, idx++);
+    if (!s)
+    {
+        led_err(cli, cmd);
+        return;
+    }
+
+    if (!strcmp(s, "off"))
+    {
+        pm->sim_led(false, 0, 0, 0, 0);
+        return;
+    }
+
+    int args[4] = { 0 };
+    for (int i = 0; i < 4; i++)
+    {
+        if ((!s) || !cli_parse_int(s, & args[i], 0))
+        {
+            led_err(cli, cmd);
+            return;
+        }
+        s = cli_get_arg(cli, idx++);
+    }
+
+    pm->sim_led(true, args[0], uint8_t(args[1]), uint8_t(args[2]), uint8_t(args[3]));
+}
+
+    /*
+     *
+     */
+
 CliCommand cli_cmds[] = {
     { "key", cli_keypress, "simulate key press", 0, 0 },
     { "mode", cli_mode, "mode <eco|on|off|base>", 0, 0 },
@@ -203,6 +246,7 @@ CliCommand cli_cmds[] = {
     { "power", cli_power, "power N|off # simulate power value", 0, 0 },
     { "phase", cli_phase, "phase N|off # directly set triac phase", 0, 0 },
     { "temp", cli_temp, "temp N|off # simulate temperature", 0, 0 },
+    { "led", cli_led, "temp idx|off r g b # set LED state ", 0, 0 },
     { 0 },
 };
 

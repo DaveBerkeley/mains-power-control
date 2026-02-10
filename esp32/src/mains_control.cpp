@@ -226,7 +226,7 @@ class _PowerManager : public PowerManager
     int phase_sim;
     int phase_sim_value;
 
-    enum Error { E_NONE, E_WIFI, E_MQTT, E_TEMP };
+    enum Error { E_NONE, E_WIFI, E_MQTT, E_TEMP, E_TEST };
 
     enum Error error_state;
 
@@ -271,6 +271,27 @@ public:
     virtual void sim_temperature(bool on, int t) override
     {
         sim_temp.set_sim(on, t);
+    }
+
+    virtual void sim_led(bool on, int idx, uint8_t r, uint8_t g, uint8_t b) override
+    {
+        if (!on)
+        {
+            set_error(E_NONE);
+            set_mode(mode);
+            return;
+        }
+        
+        ASSERT(leds);
+        if ((idx < 0) || (idx >= leds->num_leds()))
+        {
+            PO_ERROR("bad idx=%d", idx);
+            return;
+        }
+
+        set_error(E_TEST);
+        leds->set(idx, r, g, b);
+        leds->send();
     }
 
     virtual Mode get_mode() override
@@ -384,6 +405,7 @@ public:
             case E_MQTT : { b = bright; break; }
             case E_TEMP : { r = bright; break; }
             case E_NONE : return;
+            case E_TEST : return;
             default : ASSERT(0);
         }
 
@@ -535,6 +557,8 @@ public:
             return E_WIFI;
         if (Time::elapsed(last_mqtt, watchdog_period))
             return E_MQTT;
+        if (error_state == E_TEST)
+            return E_TEST;
         return E_NONE;
     }
 
@@ -550,6 +574,7 @@ public:
             {   "E_WIFI", E_WIFI, },
             {   "E_MQTT", E_MQTT, },
             {   "E_NONE", E_NONE, },
+            {   "E_TEST", E_TEST, },
             {   0 },
         };
         return lut(error_mode_lut, error_state);

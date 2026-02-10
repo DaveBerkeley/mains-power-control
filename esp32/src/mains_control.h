@@ -110,6 +110,7 @@ public:
     virtual void set_simulation(bool on, int power=0) = 0;
     virtual void set_pulse(int p) = 0;
     virtual void sim_phase(bool on, int phase) = 0;
+    virtual void sim_led(bool on, int idx, uint8_t r, uint8_t g, uint8_t b) = 0;
     virtual void sim_temperature(bool on, int t) = 0;
     virtual void forward(const char *s) = 0;
 

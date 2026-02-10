@@ -458,4 +458,44 @@ TEST(MainsControl, Fan)
     delete control;
 }
 
+    /*
+     *
+     */
+
+TEST(MainsControl, Led)
+{
+    mc_SysSetup sys;
+    PowerControl *control = PowerControl::create(1000, -30);
+    TemperatureControlConfig tc_config = {
+        .fan = 0,
+        .sensor = 0,
+        .fan_on = 28,
+        .fan_off = 25,
+        .alarm = 40,
+    };
+
+    const PowerManager::Config config = {
+        .pc = control,
+        .leds = & sys.leds,
+        .uart = & sys.uart,
+        .button = & sys.button,
+        .base = 20,
+        .temp_control = & tc_config,
+    };
+    PowerManager *pm = PowerManager::create(& config);
+
+    pm->sim_led(true, 0, 1, 2, 3);
+    pm->sim_led(true, 1, 3, 4, 5);
+
+    EXPECT_EQ(sys.leds.state[0].r, 2);
+    EXPECT_EQ(sys.leds.state[0].g, 1);
+    EXPECT_EQ(sys.leds.state[0].b, 3);
+    EXPECT_EQ(sys.leds.state[1].r, 4);
+    EXPECT_EQ(sys.leds.state[1].g, 3);
+    EXPECT_EQ(sys.leds.state[1].b, 5);
+
+    delete pm;
+    delete control;
+}
+
 //  FIN
