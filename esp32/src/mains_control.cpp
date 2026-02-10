@@ -44,6 +44,8 @@ static VERBOSE(app, "app", false);
      *
      */
 
+static bool fan_xor = 0;
+
 #if defined(ESP32)
 
 #include "panglos/esp32/gpio.h"
@@ -75,8 +77,8 @@ static bool leds_init(Device *dev, void *arg)
 
 static const GPIO_DEF button_def = { GPIO_NUM_8, ESP_GPIO::IP | ESP_GPIO::PU, false };
 // TODO : change to drive (not open-drain) and invert for v 1.1 PCB!
-static bool fan_xor = 1;
-static const GPIO_DEF fan_def = { GPIO_NUM_6, ESP_GPIO::OP | ESP_GPIO::OD, true };
+// fan is GPIO_NUM_6 on the PCB. I've modified the prototype!!!!
+static const GPIO_DEF fan_def = { GPIO_NUM_3, ESP_GPIO::OP, false };
 static const GPIO_DEF lamp_def = { GPIO_NUM_10, ESP_GPIO::OP | ESP_GPIO::OD, false };
 
 #define UART_BAUD 115200

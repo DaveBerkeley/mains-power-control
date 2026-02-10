@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "panglos/debug.h"
+#include "panglos/drivers/gpio.h"
 
 #include "cli/src/cli.h"
 
@@ -110,7 +111,10 @@ void cli_show(CLI *cli, CliCommand *cmd)
     cli_print(cli, "error=%s%s", pm->get_error_mode(), cli->eol);
     if (tc)
     {
-        cli_print(cli, "fan_on=%d fan_off=%d alarm=%d%s", tc->fan_on, tc->fan_off, tc->alarm, cli->eol);
+        cli_print(cli, "fan_on=%d fan_off=%d alarm=%d state=%d%s", 
+                tc->fan_on, tc->fan_off, tc->alarm, 
+                tc->fan ? tc->fan->get() : -1,
+                cli->eol);
     }
 }
 
