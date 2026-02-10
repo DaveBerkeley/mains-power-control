@@ -58,10 +58,10 @@ led_upper = 2;
 fan_dx = 25;
 fan_dy = 25;
 fan_dz = 7;
-fan_indent = (20 - 16) / 2;
-fan_r = m2_hole_r;
-fan_in_r = 14/2;
-fan_out_r = 24/2;
+fan_indent = (fan_dx - 20) / 2;
+fan_r = m3_hole_r;
+fan_in_r = 16/2;
+fan_out_r = 23.5/2;
 fan_t = 20;
 fan_blade_start = 0; // degrees
 fan_blade_step = 20; // degrees
@@ -557,6 +557,10 @@ translate( [ -box_dx/2, -box_dy/2, 0 ] )
     else
         lid();    
 }
+// pcb area
+//translate( [ -75, -40, -40 ] )
+//#cube([ 70, 80, 25 ]);
+// fan area
 //translate( [ 30, -4, -40 ] )
 //#cube([ 50, 38, 45 ]);
 //}
