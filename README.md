@@ -91,7 +91,7 @@ I added simple GPIO and UART support to Panglos for the STM32F1 using direct con
 I don't event need the HAL code.
 
 The 
-[STM32 code](https://github.com/DaveBerkeley/mains-power-control/stm32)
+[STM32 code](https://github.com/DaveBerkeley/mains-power-control/tree/master/stm32)
 is on github.
 
 The timer code was developed using interaction with [Claude AI](https://claude.ai/).
@@ -343,6 +343,39 @@ and try to connect again. The MQTT driver will attempt to reconnect if it loses 
 
 ----
 
+Configuration
+====
+
+To config the unit I use my Storage class in Panglos.
+This is a non-volatile storage class that wraps the ESPIDF *nvs* system.
+I haven't written an equivalent library for other targets yet.
+Example use from *mains_control.cpp* :
+
+    const char *topic = 0;
+    Storage db("mqtt");
+    char stopic[48];
+    size_t s = sizeof(stopic);
+    if (db.get("topic", stopic, & s))
+    {
+        topic = strdup(stopic);
+    }
+
+The CLI has "db" commands, allowing you to get, set and list variables.
+These can be strings, integers, doubles or blobs.
+For example to set the MQTT topic string :
+
+    > db set mqtt topic home/power/2
+
+Next time it boots it will pick up the new value.
+All of the run-time parameters can be set in this way;
+WiFi credentials, MQTT host, temperature limits, load etc.
+
+For example, set the mDNS name of the unit :
+
+    > db set net hostname pwr1
+
+----
+
 Schematics and PCB
 ====
 
@@ -401,6 +434,7 @@ Temperature plots
 ====
 
 I tried the unit with a 2kW electric heater. 
+It is February and it has rained every day so far this year.
 The sunshine was patchy with clouds frequently obscuring the sun.
 I plotted the percent load and the temperature of the heatsink.
 The x-axis is in seconds.
@@ -409,7 +443,18 @@ The x-axis is in seconds.
 
 *temperatue plot*
 
+You can see how the temperature rises when the load is supplied with more power.
+It also cools when the percent power is reduced.
+For a given ambient temperature the sensor temperature will stabilise
+at a fixed temperature for a given power input.
+It has to keep the TRIAC junction temperature below its maximum.
+The case is made from PLA, a thermoplastic, so we also want to stop it from melting.
+The PLA I'm using melts at 160C, but will soften before this.
+The "Glass Transition Temperature" is 60C so we definitely want
+to stay below this.
+
 The fan control was set to come on at 27C.
+Once the fan is running the heatsink will be able to dissipate more heat.
 The TRIAC dissipates a Wattage in proportion to the current drawn through it by the load.
 The device datasheet shows the relationship.
 For a maximum current of around 10A we would expect the TRIAC to dissipate around 9W as heat.
