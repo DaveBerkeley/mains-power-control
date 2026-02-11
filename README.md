@@ -2,17 +2,22 @@
 Mains Power Controller
 ----
 
-### WORK IN PROGRESS!
+![mains power diverter](docs/IMG_20260211_095551Z.jpg)
+
+*Mains Power Controller*
 
 ----
 
 ## Warning!
 
-Mains electricity can kill you. If you don't know what you are doing, don't do it. You have been warned.
+Mains electricity can kill you. If you don't know what you are doing, don't do it.
+This project involves live mains power.
 
 ----
 
 ![inside the enclosure](docs/IMG_20260207_121224Z.jpg)
+
+*Mains Power Controller interior*
 
 I wanted a way to divert excess power from my solar panels into a load,
 so I can use just excess solar power.
@@ -56,6 +61,8 @@ Without a Schmitt trigger the slow analog input signal causes spikes and multipl
 
 ![signal without a Schmitt trigger](docs/scr_20240117170940.png)
 
+*multiple triggering seen when an analog input meets a GPIO with no Schmitt trigger*
+
 So I ended up with a hybrid solution. Not a great one, but a compromise.
 I used 2 microcontrollers - one to provide the zero crossing detection and phase control,
 the second to driver the control system and MQTT interface.
@@ -63,12 +70,14 @@ I settled on an STM32F1 as they are cheap, simple and I had one to hand.
 
 ![Using a thermal camera to check the temperature](docs/IMG_20260204_152732Z.jpg)
 
-Using a thermal camera to check the temperature on the first prototype.
+*Using a thermal camera to check the temperature on the first prototype*
+
 This fan was too small to cool the heatsink adequately.
+I used a larger fan for the final design.
 
 ----
 
-## STM32 Controller
+## STM32 ARM Controller
 
 I write my embedded code using my [Panglos][Panglos] framework.
 This allows me to develop target agnostic code and to reuse all my drivers and library code.
@@ -109,6 +118,8 @@ The second trace is the output of the second timer, showing the adjustable phase
 The third trace is the TRAIC drive signal.
 
 ![Timer signals](docs/Screenshot_2026-01-03_17-11-09.png)
+
+*STM32 timer input and output signals*
 
 For development I added a CLI to the STM32 using my [CLI library][CLI library].
 This allowed me to interact with the STM32, set the TRIAC phase, see the timing etc.
@@ -193,6 +204,10 @@ The [DS18B20 driver](https://github.com/DaveBerkeley/panglos/blob/master/src/dri
 works with either OneWire driver.
 It follows the [Panglos][Panglos] design philosophy of removing all hardware and OS dependency from the code.
 It also abstracts the temperature sensor so that you can unit test the control code without the hardware.
+This means that you can use tools like 
+[valgrind](https://valgrind.org/) to check for leaks or memory errors, 
+without needing to run on the target.
+You can exhaustively test your code.
 
 The temperature control code is very simple.
 It simply turns on a fan when the temperature rises above a set point.
@@ -332,11 +347,15 @@ A commercial product would not look anything like this.
 
 ![Schematic](docs/Screenshot_2026-01-26_17-32-56.png)
 
+*schematic*
+
 The PCB layout was done using [KiCad](https://www.kicad.org/).
 The files are in [github](kicad/mains-power-control/).
 The PCB looks like this :
 
 ![PCB](docs/Screenshot_2026-01-26_17-35-11.png)
+
+*PCB layout*
 
 In version 1.1 of the board I placed the LEDs and switch housing on the PCB itself, 
 rather than have a flying lead.
@@ -360,11 +379,103 @@ The enclosure design is written in
 
 ![Enclosure CAD view](docs/Screenshot_2026-01-30_13-13-38.png)
 
+*enclosure CAD view*
+
 The unit has an IEC power inlet, a UK style 13-Amp plug socket, the control PCB
 connected to the switch and LEDs, the TRAIC mounted on a heatsink and a cooling fan.
 
 There are air inlets on 2 sides, to allow the fan to produce a flow of air across the heatsink.
 The inlets are designed with a kink in the path to prevent you from pushing things through them.
+
+----
+Temperature plots
+====
+
+I tried the unit with a 2kW electric heater. 
+The sunshine was patchy with clouds frequently obscuring the sun.
+I plotted the percent load and the temperature of the heatsink.
+
+![temperatue plot](docs/Screenshot_2026-02-09_09-01-47.png)
+
+*temperatue plot*
+
+The fan control was set to come on at 27C.
+The TRIAC dissipates a Wattage in proportion to the current drawn through it by the load.
+The device datasheet shows the relationship.
+For a maximum current of around 10A we would expect the TRIAC to dissipate around 9W as heat.
+
+![TRIAC datasheet](docs/Screenshot_2026-02-01_10-21-14.png)
+
+*TRIAC datasheet current vs. power dissipation*
+
+This heat has to be removed to prevent the device junction temperature exceeding its max : 125C.
+This is done by bolting the device to a heatsink.
+This conducts heat away from the device and transfers it to the surrounding air.
+This air cooling needed some assistance, so I added a fan set to direct a flow of air 
+over the fins of the heatsink.
+The temperature sensor is bolted to the heatsink.
+It gives an indication of the device temperature.
+If the sensor detects a temperature over the 'alarm' level the system goes into Error mode
+and turns off power to the load until the sensor shows it has cooled down.
+
+----
+
+Lex
+====
+
+I use my 
+[Lex](https://github.com/DaveBerkeley/lex)
+utility to parse log files.
+lex.py has a filter designed to work with my [Panglos][Panglos] logs.
+This allows me to extract data directly from debug logs.
+For example, to extract the temperature sensor readings live :
+
+    echo -e "verbose app 1\nlog\n" | nc pwr1.local 6668  | lex.py -M panglos -m "te:=' t=(-?\d+)'" -f "%(te)s"
+
+The first part 'echo -e "verbose app 1\nlog\n" | nc pwr1.local 6668' logs into the network CLI
+of the device and sets verbose mode for the app. It then enables logging to the network CLI.
+The output is piped into lex.py
+
+Lex loads the [Panglos][Panglos] handler, 
+which knows about the format of panglos logs,
+extracts the temperature reading from the log and outputs it.
+A single debug log line looks like this :
+
+    320251 main DEBUG src/mains_control.cpp +480 set_phase() : phase=0 percent=0 power=188 t=17
+
+The *-m* matches the " t=17" part and puts it into the variable 'te'.
+The *-f* format line prints the temperature variable to stdout.
+As all my projects use the same logging syntax and all my ESP32 projects have a net CLI
+I can extract any data I need very easily from any project.
+
+In my career I've seen lots of ad-hoc logging systems in companies I've worked for.
+None has been as capable as my Panglos system.
+With the lex.py tools you can extract any information you want from the logs.
+For one company I worked for I used it to create a 
+[dot](https://www.graphviz.org/doc/info/lang.html)
+diagram of all the zeromq broker connections in a live system.
+This immeadiately spotted some resource leaks.
+It also gave a clear graph of the system interconnections which made it easier to develop the code 
+and spot any errors.
+I've also used it to create web pages of log traces where you can click on the log line
+and it opens the source file in vim and takes you to the line that produced the log.
+Logging can be very powerful. But you need the right tools.
+
+----
+
+Summary
+====
+
+I enjoyed making this device.
+It is a horrible compromise fusion of STM32 and ESP32 because of limitations in the ESP32 SoC.
+But it all came together very well.
+The panglos libraries were easy to use. 
+Each time I develop a project I end up adding to the libraries.
+And each project becomes easier as the libraries already provide lots of functionality.
+
+All I need now is some sunshine to power my heater and kettle.
+
+Jan/Feb 2026
 
 [Panglos]: https://github.com/DaveBerkeley/panglos 
 [CLI library]: https://github.com/DaveBerkeley/cli
