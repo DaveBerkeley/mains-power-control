@@ -65,8 +65,10 @@ Without a Schmitt trigger the slow analog input signal causes spikes and multipl
 
 So I ended up with a hybrid solution. Not a great one, but a compromise.
 I used 2 microcontrollers - one to provide the zero crossing detection and phase control,
-the second to driver the control system and MQTT interface.
+the second to drive the control system and MQTT interface.
 I settled on an STM32F1 as they are cheap, simple and I had one to hand.
+If I were to start on new hardware I'd probably use one of the smaller footprint devices,
+but the STM32F1 is fine.
 
 ![Using a thermal camera to check the temperature](docs/IMG_20260204_152732Z.jpg)
 
@@ -102,6 +104,13 @@ I fed a low voltage sinewave into the opto detector as a signal source,
 viewing the outputs on a 'scope.
 I have a number of reservations about the use of AI in software. I think that we need to be careful.
 But this was an experiment.
+
+The sinewave generator I used for this test was FPGA based on my
+[CORDIC](https://github.com/DaveBerkeley/cordic) library
+and my 
+[Streams](https://github.com/DaveBerkeley/streams) library
+together to drive an I2S output with sine data into a PMOD DAC.
+FPGAs are very handy for generating test signals.
 
 The result used 3 timers : one to trigger on the input from the zero-crossing detector.
 This allows me to measure the period of the mains cycle.
@@ -243,8 +252,8 @@ with a friendly name. In this case 'pwr1'.
 The [ESP32 code](esp32) is in github. 
 The main control code is in [esp32/src/mains_control.cpp](esp32/src/mains_control.cpp).
 
-The device initialisation is more complex than the STM32 case. It uses the
-panglos::init_devices() code. This takes an array of Device descriptions
+The device initialisation is more complex than the STM32 case. It uses panglos::init_devices(). 
+This takes an array of Device descriptions
 and initialises them in order, taking into account any device dependency.
 In this case the ds18b20 temperature sensor needs the OneWire device to be 
 created first.
@@ -317,14 +326,14 @@ Commands are added to the CLI.
 User Interface
 ====
 
-The user interface consists of a single illuminated push button and 2 smarts LEDs.
-One LED indicates Mode, and other shows metered import / export.
+The user interface consists of a single illuminated push button and 2 smart LEDs.
+One LED indicates Mode, the other shows metered import / export.
 Imports are shown in Red, exports in Green, the brightness reflects the number of Watts.
 The button steps through the Modes : On, Off, Eco and Base. On and Off are self explanatory.
 Eco Mode will use any excess export power and divert it to the load.
 Base Mode is like Eco Mode but it will always provide a minimum level of power to the load.
 The default is 20%. 
-This can be used, for example, to power a kettle. It uses any solar power is possible,
+This can be used, for example, to power a kettle. It uses any solar power if possible,
 but if not enough is available it will still boil the water : it will just take longer.
 
 Error modes are shown by alternating flashing of the 2 LEDs. Over temperature as Red flashing LEDs,
@@ -360,7 +369,7 @@ The PCB looks like this :
 In version 1.1 of the board I placed the LEDs and switch housing on the PCB itself, 
 rather than have a flying lead.
 I added a FET switch to control the fan and a OneWire interface for the temperature sensor.
-I left on test points for the STM32.
+I left the test points for the STM32.
 The XIAO ESP32C3 has an antenna socket. The simple ESP32C3 supermini boards do not
 and this can limit the WiFi reception. 
 There is also a ESP32C3 supermini plus that has an antenna socket.
@@ -394,6 +403,7 @@ Temperature plots
 I tried the unit with a 2kW electric heater. 
 The sunshine was patchy with clouds frequently obscuring the sun.
 I plotted the percent load and the temperature of the heatsink.
+The x-axis is in seconds.
 
 ![temperatue plot](docs/Screenshot_2026-02-09_09-01-47.png)
 
@@ -448,6 +458,16 @@ The *-f* format line prints the temperature variable to stdout.
 As all my projects use the same logging syntax and all my ESP32 projects have a net CLI
 I can extract any data I need very easily from any project.
 
+You can put lex commnds in a defaults file and load it, 
+for example to default to panglos logs. Just add them to *~/.lexrc*
+
+You can, for example, match on certain functions, or NOT those functions :
+
+    lex.py -D -m "fn!='set_phase'"
+
+will only print log lines that aren't from the trace above.
+You can use logical operators to chains these matches together.
+
 In my career I've seen lots of ad-hoc logging systems in companies I've worked for.
 None has been as capable as my Panglos system.
 With the lex.py tools you can extract any information you want from the logs.
@@ -460,6 +480,9 @@ and spot any errors.
 I've also used it to create web pages of log traces where you can click on the log line
 and it opens the source file in vim and takes you to the line that produced the log.
 Logging can be very powerful. But you need the right tools.
+
+I often pipe these lex outputs into a real-time graph using 
+[cli-plot](https://www.npmjs.com/package/cli-plot).
 
 ----
 
