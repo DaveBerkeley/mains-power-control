@@ -39,6 +39,7 @@ outlet_mount = pcb_mount - 2;
 
 // IEC mains inlet
 iec_style = iec_s3;
+iec_offset = 10;
 
 // switch
 sw_r = 12.5/2;
@@ -396,6 +397,7 @@ module box(dz)
 
 module lid()
 {
+    lid_head_dz = 4;
     difference()
     {
         box(lid_dz);
@@ -404,7 +406,11 @@ module lid()
             for (y = [ 0, box_dy])
             {
                 translate([ x, y, -0.01 ] )
-                cylinder(h=lid_dz+0.02, r=m3_hole_r);
+                {
+                    cylinder(h=lid_dz+0.02, r=m3_hole_r);
+                    translate( [ 0, 0, lid_dz-lid_head_dz+0.02 ] )
+                    cylinder(h=lid_head_dz, r=m3_head_r);
+                }
             }
         }
     }
@@ -506,7 +512,7 @@ module main()
             translate([ outlet_off, outlet_off, box_dz+0.01 ] )
             outlet(15);
 
-            translate([ outlet_off + (outlet_dx/2), box_dy - 15, (box_dz-box_thick)/2 ])
+            translate([ outlet_off + (outlet_dx/2) + iec_offset, box_dy - 15, (box_dz-box_thick)/2 ])
             rotate([ 90, 0, 180 ])
             iec_cutout(iec_style, 25, m3_hole_r);
 
@@ -564,23 +570,6 @@ translate( [ -box_dx/2, -box_dy/2, 0 ] )
 //translate( [ 30, -4, -40 ] )
 //#cube([ 50, 38, 45 ]);
 //}
-
-//devbox();
-//rotate( [ 180, 0, 0 ] )
-//devbox_lid();
-if (0) difference()
-{
-    e = 2;
-    union()
-    {
-        dx = led_pitch * 2;
-        dy = 12;
-        translate([ -led_pitch/2, -dy/2, 0 ] )
-        cube([ dx, dy, e-0.2 ] );
-        leds(e);
-    }
-    leds_cut(e);
-}
 
 // Test the fan / vent design
 
