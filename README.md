@@ -187,7 +187,7 @@ are all abstracted, so the code is OS and target agnostic.
 
 ----
 
-## ESP32 Controller
+## ESP32 RISC-V Controller
 
 The main control system runs on the ESP32. I used an 
 [ESP32C3 XIAO](https://wiki.seeedstudio.com/XIAO_ESP32C3_Getting_Started/)
@@ -203,6 +203,7 @@ The controller does the following :
 * controls a cooling fan using a GPIO pin
 * regulates the power applied to the load by controlling the TRIAC phase
 * handles error situations : eg. loss of WiFi, overtemperature etc.
+* runs a CLI over UART and network to allow configuration and remote control / monitoring
 
 For the LEDs I used the [WS2812B](docs/WS2812B.pdf) smart LED.
 I already had drivers for this device in [Panglos][Panglos] that wrap the ESPIDF RMT library.
@@ -472,6 +473,18 @@ The temperature sensor is bolted to the heatsink.
 It gives an indication of the device temperature.
 If the sensor detects a temperature over the 'alarm' level the system goes into Error mode
 and turns off power to the load until the sensor shows it has cooled down.
+
+Here's another temperature / power plot showing that the fan provides quite 
+good cooling allowing the temperature to be held between the fan on/off values
+for low power levels.
+The fan was cycling on and off to produce the 'W' shaped part of the waveform.
+Once the power goes over a certain level, the fan is no longer able to cool the
+heatsink below the fan-off threshold, so the temperature will 
+stabilise at a higher level with the fan constantly on.
+
+![temperature plot](docs/Screenshot_2026-02-13_09-43-32.png)
+
+*temperature plot*
 
 ----
 
