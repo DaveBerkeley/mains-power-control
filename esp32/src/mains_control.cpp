@@ -22,6 +22,8 @@
 #include "panglos/network.h"
 #include "panglos/time.h"
 #include "panglos/verbose.h"
+#include "panglos/json_fmt.h"
+#include "panglos/ntp.h"
 
 #include "panglos/drivers/timer.h"
 #include "panglos/drivers/one_wire.h"
@@ -113,18 +115,33 @@ void board_init()
     EventHandler::add_handler(Event::INIT, net_cli_init, 0);
 
     const char *topic = 0;
+    const char *tx_topic = 0;
+    const char *dev = 0;
 
     {
         Storage db("mqtt");
         char stopic[48];
+        
         size_t s = sizeof(stopic);
         if (db.get("topic", stopic, & s))
         {
             topic = strdup(stopic);
         }
+
+        s = sizeof(stopic);
+        if (db.get("tx_topic", stopic, & s))
+        {
+            tx_topic = strdup(stopic);
+        }
+
+        s = sizeof(stopic);
+        if (db.get("dev", stopic, & s))
+        {
+            dev = strdup(stopic);
+        }
     }
 
-    mains_control_init(topic);
+    mains_control_init(topic, tx_topic, dev);
 }
 
 #endif // ESP32
@@ -451,7 +468,8 @@ public:
         sim_power(0),
         phase_sim(false),
         phase_sim_value(0),
-        error_state(E_NONE)
+        error_state(E_NONE),
+        phase_cb(0)
     {
         ASSERT(config);
         ASSERT(config->pc);
@@ -497,12 +515,27 @@ public:
         messages.push(msg);
     }
 
+    PhaseCb phase_cb;
+    void *phase_cb_obj;
+
+    virtual void set_phase_cb(PhaseCb fn, void *obj) override
+    {
+        phase_cb = fn;
+        phase_cb_obj = obj;
+    }
+
     void set_phase(int p)
     {
         if (app.verbose) PO_DEBUG("phase=%d percent=%d power=%d t=%d", p, percent, power, get_temperature());
         stm32.printf("phase %d %d # %d\r\n", p, pulse, ticks);
         phase = p;
         stm32.printf("led %d\r\n", flash);
+
+        // TODO : Tx MQTT notification?
+        if (phase_cb)
+        {
+            phase_cb(phase_cb_obj, percent, power, get_temperature());
+        }
     }
 
     void handle_power(int _power, bool update_leds=true)
@@ -831,7 +864,41 @@ static bool mc_cli_init(void *arg, Event *, Event::Queue *)
      *
      */
 
-static void init_mqtt(const char *topic, PowerManager *pm)
+struct MqttTx
+{
+    MqttClient *mqtt;
+    const char *topic;
+    const char *dev;
+};
+
+static void phase_cb(void *obj, int percent, int power, int temperature) 
+{
+    ASSERT(obj);
+    struct MqttTx *tx = (struct MqttTx *) obj;
+
+    char buff[180];
+    CharOut line(buff, sizeof(buff));
+    JsonOut json(& line);
+
+    json.start_obj();
+    if (tx->dev)
+    {
+        json.key_value("dev", tx->dev);
+    }
+    json.key_value("percent", percent);
+    json.key_value("power", power);
+    json.key_value("temperature", temperature);
+    json.key_dt("time", "utc");
+    json.end_obj();
+
+    ASSERT(tx->mqtt);
+    ASSERT(tx->topic);
+    tx->mqtt->publish(tx->topic, buff, (int) strlen(buff));
+
+    if (app.verbose) PO_DEBUG("%s", buff);
+}
+
+static void init_mqtt(const char *topic, const char *tx_topic, const char *dev, PowerManager *pm)
 {
     MqttClient *mqtt = (MqttClient *) Objects::objects->get("mqtt");
     if (!mqtt)
@@ -852,13 +919,23 @@ static void init_mqtt(const char *topic, PowerManager *pm)
     };
 
     mqtt->add(& sub);
+
+    if (tx_topic)
+    {
+        static struct MqttTx tx = {
+            .mqtt = mqtt,
+            .topic = tx_topic,
+            .dev = dev,
+        };
+        pm->set_phase_cb(phase_cb, & tx);
+    }
 }
 
     /*
      *
      */
 
-void mains_control_init(const char *topic)
+void mains_control_init(const char *topic, const char *tx_topic, const char *dev)
 {
     PO_DEBUG("");
     LedStrip *leds = (LedStrip*) Objects::objects->get("leds");
@@ -918,7 +995,11 @@ void mains_control_init(const char *topic)
     timer->set_period(10000); // in us
     timer->start(true);
 
-    init_mqtt(topic, pm);
+    init_mqtt(topic, tx_topic, dev, pm);
+    if (tx_topic)
+    {
+        ntp_start();
+    }
 
     // IDLE events are used as the main loop
     EventHandler::add_handler(Event::IDLE, on_idle, pm);

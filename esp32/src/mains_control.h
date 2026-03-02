@@ -5,7 +5,7 @@
 
 #include "temperature.h"
 
-void mains_control_init(const char *topic);
+void mains_control_init(const char *topic, const char *tx_topic, const char *dev);
 
     /*
      *
@@ -115,6 +115,9 @@ public:
     virtual void forward(const char *s) = 0;
 
     virtual TemperatureControl *get_temp_control() = 0;
+ 
+    typedef void (*PhaseCb)(void *obj, int percent, int power, int temperature);
+    virtual void set_phase_cb(PhaseCb , void *) {}
     
     static PowerManager *create(const Config *config);
 };

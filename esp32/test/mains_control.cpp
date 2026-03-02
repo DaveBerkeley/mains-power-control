@@ -19,6 +19,13 @@
 
 using namespace panglos;
 
+namespace panglos {
+    void ntp_start(Time::tick_t)
+    {
+        PO_DEBUG("");
+    }
+}
+
      /*
      *  Simulate a system populated with Devices
      */

@@ -43,6 +43,7 @@ files = [
     'socket.cpp',
     'cli_net.cpp',
     'event_queue.cpp',
+    'json_fmt.cpp',
 
     'drivers/spi.cpp',
     'drivers/ds18b20.cpp',
@@ -56,6 +57,7 @@ files = [
     'esp32/rmt_strip.cpp',
     'esp32/timer.cpp',
     'esp32/one_wire_bitbang.cpp',
+    'esp32/ntp.cpp',
 
     'app/cli.cpp',
     'app/event.cpp',
@@ -99,6 +101,8 @@ files = [
     'panglos/tx_net.h',
     'panglos/dispatch.h',
     'panglos/deque.h',
+    'panglos/json_fmt.h',
+    'panglos/ntp.h',
 
     'panglos/drivers/gpio.h',
     'panglos/drivers/uart.h',

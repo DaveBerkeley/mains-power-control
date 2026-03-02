@@ -36,6 +36,7 @@ panglos = [
     #'src/socket.cpp',
     #'src/batch.cpp',
     'src/network.cpp',
+    'src/json_fmt.cpp',
     #'src/fmt.cpp',
     #'src/date.cpp',
     #'src/watchdog.cpp',
