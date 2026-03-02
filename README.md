@@ -24,7 +24,7 @@ so I can use just excess solar power.
 For example, to run an electric heater or a kettle.
 This allows me to run an applicance at zero cost.
 
-This project is based on an earlier one
+This project is based on an 
 [earlier one](https://www.rotwang.co.uk/projects/kettle.html)
 and uses similar technology.
 I designed a smart meter that sends out 
@@ -125,6 +125,8 @@ The top trace is the analog output of the zero-crossing detector.
 The input signal is a lower voltage for test purposes. In the real circuit the "on" periods will be shorter.
 The second trace is the output of the second timer, showing the adjustable phase period.
 The third trace is the TRAIC drive signal.
+I found that the period from peak to peak alternates around two values,
+presumably because the LEDs in each direction have slightly different characteristics.
 
 ![Timer signals](docs/Screenshot_2026-01-03_17-11-09.png)
 
@@ -439,6 +441,8 @@ It is February and it has rained every day so far this year.
 The sunshine was patchy with clouds frequently obscuring the sun.
 I plotted the percent load and the temperature of the heatsink.
 The x-axis is in seconds.
+The sensor measures the temperature of the heatsink, 
+not the ambient or the junction temperature.
 
 ![temperatue plot](docs/Screenshot_2026-02-09_09-01-47.png)
 
@@ -485,6 +489,8 @@ stabilise at a higher level with the fan constantly on.
 ![temperature plot](docs/Screenshot_2026-02-13_09-43-32.png)
 
 *temperature plot*
+
+Yes, it was 14C in my office. Why do you think I want a heater?
 
 ----
 
