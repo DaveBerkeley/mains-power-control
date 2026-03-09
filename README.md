@@ -492,6 +492,14 @@ stabilise at a higher level with the fan constantly on.
 
 Yes, it was 14C in my office. Why do you think I want a heater?
 
+![temperature plot](docs/Screenshot_2026-03-09_10-11-53.png)
+
+*temperature plot - kettle*
+
+Here's a simpler one. Powering a kettle at around 80 .. 90% power.
+You can see the exponential response curve
+and the non-linearity introduced by the cooling fan.
+
 ----
 
 Lex
